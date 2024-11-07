@@ -341,38 +341,37 @@ static void so_chamada_le(so_t *self) {
     //   T1: deveria usar dispositivo de entrada corrente do processo
 
     process_t *running = ptable_running_process(self->ptbl);
-    unsigned int teclado = 4 * process_pid(running) + D_TERM_A_TECLADO;
-    unsigned int teclado_ok = 4 * process_pid(running) + D_TERM_A_TECLADO_OK;
 
-    for (;;) {
-        int estado;
-        if (es_le(self->es, teclado_ok, &estado) != ERR_OK) {
-            console_printf("SO: problema no acesso ao estado do teclado");
-            self->erro_interno = true;
-            return;
-        }
-        if (estado != 0)
-            break;
-        // como não está saindo do SO, a unidade de controle não está executando
-        // seu laço. esta gambiarra faz pelo menos a console ser atualizada T1:
-        // com a implementação de bloqueio de processo, esta gambiarra não
-        //   deve mais existir.
-        console_tictac(self->console);
+    int teclado = 4 * process_pid(running) + D_TERM_A_TECLADO;
+    int teclado_ok = 4 * process_pid(running) + D_TERM_A_TECLADO_OK;
+
+    int empty;
+    if (es_le(self->es, teclado_ok, &empty) != ERR_OK) {
+        console_printf("SO: problema no acesso ao estado do teclado");
+        self->erro_interno = true;
+        return;
     }
-    int dado;
-    if (es_le(self->es, teclado, &dado) != ERR_OK) {
+
+    if (empty) {
+        process_set_state(running, blocked);
+        return;
+    }
+
+    int data;
+    if (es_le(self->es, teclado, &data) != ERR_OK) {
         console_printf("SO: problema no acesso ao teclado");
         self->erro_interno = true;
         return;
     }
     // escreve no reg A do processador
-    // (na verdade, na posição onde o processador vai pegar o A quando retornar
-    // da int) T1: se houvesse processo, deveria escrever no reg A do processo
-    // T1: o acesso só deve ser feito nesse momento se for possível; se não, o
-    // processo
+    // (na verdade, na posição onde o processador vai pegar o A quando
+    // retornar da int) T1: se houvesse processo, deveria escrever no reg A
+    // do processo T1: o acesso só deve ser feito nesse momento se for
+    // possível; se não, o processo
     //   é bloqueado, e o acesso só deve ser feito mais tarde (e o processo
     //   desbloqueado)
-    mem_escreve(self->mem, IRQ_END_A, dado);
+    // mem_escreve(self->mem, IRQ_END_A, dado);
+    process_set_A(running, data);
 }
 
 // implementação da chamada se sistema SO_ESCR
@@ -396,19 +395,19 @@ static void so_chamada_escr(so_t *self) {
         }
         if (estado != 0)
             break;
-        // como não está saindo do SO, a unidade de controle não está executando
-        // seu laço. esta gambiarra faz pelo menos a console ser atualizada T1:
-        // não deve mais existir quando houver suporte a processos, porque o SO
-        // não poderá
-        //   executar por muito tempo, permitindo a execução do laço da unidade
-        //   de controle
+        // como não está saindo do SO, a unidade de controle não está
+        // executando seu laço. esta gambiarra faz pelo menos a console ser
+        // atualizada T1: não deve mais existir quando houver suporte a
+        // processos, porque o SO não poderá
+        //   executar por muito tempo, permitindo a execução do laço da
+        //   unidade de controle
         console_tictac(self->console);
     }
     int dado;
     // está lendo o valor de X e escrevendo o de A direto onde o processador
-    // colocou/vai pegar T1: deveria usar os registradores do processo que está
-    // realizando a E/S T1: caso o processo tenha sido bloqueado, esse acesso
-    // deve ser realizado em outra execução
+    // colocou/vai pegar T1: deveria usar os registradores do processo que
+    // está realizando a E/S T1: caso o processo tenha sido bloqueado, esse
+    // acesso deve ser realizado em outra execução
     //   do SO, quando ele verificar que esse acesso já pode ser feito.
     mem_le(self->mem, IRQ_END_X, &dado);
     if (es_escreve(self->es, tela, dado) != ERR_OK) {
@@ -451,8 +450,8 @@ static void so_chamada_cria_proc(so_t *self) {
 
     ptable_insert_process(self->ptbl, created);
 
-    // Deveria escrever -1 (se erro) ou o PID do processo criado (se OK) no reg
-    // A do processo que pediu a criação
+    // Deveria escrever -1 (se erro) ou o PID do processo criado (se OK) no
+    // reg A do processo que pediu a criação
     process_set_A(running, process_pid(created));
 }
 
@@ -480,8 +479,8 @@ static void so_chamada_mata_proc(so_t *self) {
 // implementação da chamada se sistema SO_ESPERA_PROC
 // espera o fim do processo com pid X
 static void so_chamada_espera_proc(so_t *self) {
-    // T1: deveria bloquear o processo se for o caso (e desbloquear na morte do
-    // esperado) ainda sem suporte a processos, retorna erro -1
+    // T1: deveria bloquear o processo se for o caso (e desbloquear na morte
+    // do esperado) ainda sem suporte a processos, retorna erro -1
 
     process_t *running = ptable_running_process(self->ptbl);
 
