@@ -133,10 +133,7 @@ static int so_trata_interrupcao(void *argC, int reg_A) {
 }
 
 static void so_salva_estado_da_cpu(so_t *self) {
-    // t1: salva os registradores que compõem o estado da cpu no descritor do
-    //   processo corrente. os valores dos registradores foram colocados pela
-    //   CPU na memória, nos endereços IRQ_END_*
-    // se não houver processo corrente, não faz nada
+
     process_t *running = ptable_running_process(self->ptbl);
 
     if (running) {
@@ -158,13 +155,8 @@ static void so_escalona(so_t *self) {
     // t1: na primeira versão, escolhe um processo caso o processo corrente não
     // possa continuar executando. depois, implementar escalonador melhor
 
-    process_t *running = ptable_running_process(self->ptbl);
-
-    if (running && process_state(running) != ready) {
-        ptable_remove_process(self->ptbl, running);
-        ptable_insert_process(self->ptbl, running);
-        ptable_set_running_process(self->ptbl, ptable_head(self->ptbl));
-    }
+    process_t *next = ptable_next_ready_process_to_head(self->ptbl);
+    ptable_set_running_process(self->ptbl, next);
 }
 
 static int so_despacha(so_t *self) {
@@ -229,9 +221,13 @@ static void so_trata_irq_reset(so_t *self) {
         return;
     }
 
-    process_t *proc = process_create(ender, 0, 0, 0, 0, usuario);
+    process_t *proc = process_create();
+    process_set_PC(proc, ender);
+
     ptable_insert_process(self->ptbl, proc);
+
     ptable_set_running_process(self->ptbl, proc);
+
     process_load_registers(proc, self->mem);
 
     // // altera o PC para o endereço de carga
@@ -292,13 +288,17 @@ static void so_chamada_espera_proc(so_t *self);
 static void so_trata_irq_chamada_sistema(so_t *self) {
     // a identificação da chamada está no registrador A
     // t1: com processos, o reg A tá no descritor do processo corrente
-    int id_chamada;
-    if (mem_le(self->mem, IRQ_END_A, &id_chamada) != ERR_OK) {
-        console_printf("SO: erro no acesso ao id da chamada de sistema");
-        self->erro_interno = true;
-        return;
-    }
+
+    process_t *running = ptable_running_process(self->ptbl);
+
+    int id_chamada = process_A(running);
+    // if (mem_le(self->mem, IRQ_END_A, &id_chamada) != ERR_OK) {
+    //     console_printf("SO: erro no acesso ao id da chamada de sistema");
+    //     self->erro_interno = true;
+    //     return;
+    // }
     console_printf("SO: chamada de sistema %d", id_chamada);
+
     switch (id_chamada) {
     case SO_LE:
         so_chamada_le(self);
@@ -317,7 +317,11 @@ static void so_trata_irq_chamada_sistema(so_t *self) {
         break;
     default:
         console_printf("SO: chamada de sistema desconhecida (%d)", id_chamada);
+
         // t1: deveria matar o processo
+        ptable_remove_process(self->ptbl, running);
+        process_free(running);
+
         self->erro_interno = true;
     }
 }
@@ -418,33 +422,38 @@ static void so_chamada_escr(so_t *self) {
 // implementação da chamada se sistema SO_CRIA_PROC
 // cria um processo
 static void so_chamada_cria_proc(so_t *self) {
-    // ainda sem suporte a processos, carrega programa e passa a executar ele
-    // quem chamou o sistema não vai mais ser executado, coitado!
     // T1: deveria criar um novo processo
-
     // em X está o endereço onde está o nome do arquivo
-    int ender_proc;
-    process_t *proc;
+
+    process_t *running = ptable_running_process(self->ptbl);
+
+    char nome[100];
+
     // t1: deveria ler o X do descritor do processo criador
-    if (mem_le(self->mem, IRQ_END_X, &ender_proc) == ERR_OK) {
-        char nome[100];
-        if (copia_str_da_mem(100, nome, self->mem, ender_proc)) {
-            int ender_carga = so_carrega_programa(self, nome);
-            if (ender_carga > 0) {
-                // t1: deveria escrever no PC do descritor do processo criado
-                proc = process_create(ender_carga, 0, 0, 0, 0, usuario);
-                ptable_insert_process(self->ptbl, proc);
-                // mem_escreve(self->mem, IRQ_END_PC, ender_carga);
-                mem_escreve(self->mem, IRQ_END_A, process_pid(proc));
-            } else {
-                mem_escreve(self->mem, IRQ_END_A, -1);
-            }
-        }
+    int asm_address = process_X(running);
+
+    if (!copia_str_da_mem(100, nome, self->mem, asm_address)) {
+        process_set_A(running, -1);
+        return;
     }
-    // deveria escrever -1 (se erro) ou o PID do processo criado (se OK) no reg
-    // A
-    //   do processo que pediu a criação
-    // mem_escreve(self->mem, IRQ_END_A, process_pid(proc));
+
+    int mem_address = so_carrega_programa(self, nome);
+
+    if (mem_address <= 0) {
+        process_set_A(running, -1);
+        return;
+    }
+
+    process_t *created = process_create();
+
+    // t1: deveria escrever no PC do descritor do processo criado
+    process_set_PC(created, mem_address);
+
+    ptable_insert_process(self->ptbl, created);
+
+    // Deveria escrever -1 (se erro) ou o PID do processo criado (se OK) no reg
+    // A do processo que pediu a criação
+    process_set_A(running, process_pid(created));
 }
 
 // implementação da chamada se sistema SO_MATA_PROC
@@ -474,10 +483,10 @@ static void so_chamada_espera_proc(so_t *self) {
     // T1: deveria bloquear o processo se for o caso (e desbloquear na morte do
     // esperado) ainda sem suporte a processos, retorna erro -1
 
-    int pid = 0;
-    mem_le(self->mem, IRQ_END_X, &pid);
-
     process_t *running = ptable_running_process(self->ptbl);
+
+    int pid = process_X(running);
+
     process_t *found = ptable_find(self->ptbl, pid);
 
     if (found) {

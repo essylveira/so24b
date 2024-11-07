@@ -18,24 +18,14 @@ struct ptable {
     process_t *head;
 };
 
-process_t *process_create(int PC, int A, int X, int erro, int complemento,
-                          int modo) {
-    process_t *proc = malloc(sizeof(process_t));
-    assert(proc != NULL);
+process_t *process_create() {
+    process_t *proc = calloc(1, sizeof(process_t));
 
     static unsigned int pid = 0;
     proc->pid = pid++;
 
+    proc->modo = usuario;
     proc->st = ready;
-
-    proc->PC = PC;
-    proc->A = A;
-    proc->X = X;
-    proc->erro = erro;
-    proc->complemento = complemento;
-    proc->modo = modo;
-
-    proc->next = NULL;
 
     return proc;
 }
@@ -77,18 +67,39 @@ void process_printf(process_t *proc) {
 
 pstate process_state(process_t *proc) { return proc->st; }
 
-void process_set_state(process_t *proc, pstate st) {
-    proc->st = st;
+void process_set_state(process_t *proc, pstate st) { proc->st = st; }
+
+int process_pid(process_t *proc) { return proc->pid; }
+
+int process_PC(process_t *proc) { return proc->PC; }
+
+int process_X(process_t *proc) { return proc->X; }
+
+int process_A(process_t *proc) { return proc->A; }
+
+err_t process_erro(process_t *proc) { return proc->erro; }
+
+cpu_modo_t process_modo(process_t *proc) { return proc->modo; }
+
+int process_complemento(process_t *proc) { return proc->complemento; }
+
+void process_set_PC(process_t *proc, int PC) { proc->PC = PC; }
+
+void process_set_X(process_t *proc, int X) { proc->X = X; }
+
+void process_set_A(process_t *proc, int A) { proc->A = A; }
+
+void process_set_erro(process_t *proc, err_t erro) { proc->erro = erro; }
+
+void process_set_modo(process_t *proc, cpu_modo_t modo) { proc->modo = modo; }
+
+void process_set_complemento(process_t *proc, int complemento) {
+    proc->complemento = complemento;
 }
 
-unsigned int process_pid(process_t *proc) { return proc->pid; }
-
 ptable_t *ptable_create() {
-    ptable_t *ptbl = malloc(sizeof(ptable_t));
-    assert(ptbl != NULL);
 
-    ptbl->running = NULL;
-    ptbl->head = NULL;
+    ptable_t *ptbl = calloc(1, sizeof(ptable_t));
 
     return ptbl;
 }
@@ -160,6 +171,25 @@ void ptable_remove_process(ptable_t *ptbl, process_t *proc) {
     }
 
     proc->next = NULL;
+}
+
+process_t *ptable_next_ready_process_to_head(ptable_t *ptbl) {
+
+    process_t *prev = NULL;
+    process_t *curr = ptbl->head;
+
+    while (curr && curr->st != ready) {
+        prev = curr;
+        curr = curr->next;
+    }
+
+    if (prev && curr) {
+        prev->next = curr->next;
+        curr->next = ptbl->head;
+        ptbl->head = curr;
+    }
+   
+    return curr;
 }
 
 process_t *ptable_find(ptable_t *ptbl, unsigned int pid) {
