@@ -345,14 +345,15 @@ static void so_chamada_le(so_t *self) {
     int teclado = 4 * process_pid(running) + D_TERM_A_TECLADO;
     int teclado_ok = 4 * process_pid(running) + D_TERM_A_TECLADO_OK;
 
-    int empty;
-    if (es_le(self->es, teclado_ok, &empty) != ERR_OK) {
+    int available;
+    if (es_le(self->es, teclado_ok, &available) != ERR_OK) {
         console_printf("SO: problema no acesso ao estado do teclado");
         self->erro_interno = true;
+        process_set_state(running, blocked);
         return;
     }
 
-    if (empty) {
+    if (!available) {
         process_set_state(running, blocked);
         return;
     }
@@ -361,6 +362,7 @@ static void so_chamada_le(so_t *self) {
     if (es_le(self->es, teclado, &data) != ERR_OK) {
         console_printf("SO: problema no acesso ao teclado");
         self->erro_interno = true;
+        process_set_state(running, blocked);
         return;
     }
     // escreve no reg A do processador
