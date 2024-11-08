@@ -464,17 +464,23 @@ static void so_chamada_cria_proc(so_t *self) {
 static void so_chamada_mata_proc(so_t *self) {
     // T1: deveria matar um processo
     // ainda sem suporte a processos, retorna erro -1
-    console_printf("SO: SO_MATA_PROC não implementada");
-    int X;
-    mem_le(self->mem, IRQ_END_X, &X);
+    // console_printf("SO: SO_MATA_PROC não implementada");
 
-    process_t *proc = ptable_find(self->ptbl, X);
+    process_t *running = ptable_running_process(self->ptbl);
 
-    if (proc) {
-        ptable_remove_process(self->ptbl, proc);
-        if (ptable_running_process(self->ptbl) == proc) {
+    // mem_le(self->mem, IRQ_END_X, &X);
+    int pid = process_X(running);
+
+    process_t *found = pid == 0 ? running : ptable_find(self->ptbl, pid);
+
+    if (found) {
+        ptable_remove_process(self->ptbl, found);
+
+        if (pid == 0) {
             ptable_set_running_process(self->ptbl, NULL);
         }
+
+        process_free(found);
     }
 
     // mem_escreve(self->mem, IRQ_END_A, -1);

@@ -11,6 +11,8 @@ struct process {
     int PC, A, X, erro, complemento, modo;
     pstate st;
     process_t *next;
+    int *waiting;
+    int waiting_n;
 };
 
 struct ptable {
