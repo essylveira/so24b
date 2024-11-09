@@ -34,3 +34,4 @@ disp_kind_t unresolved_disp_kind(unresolved_t *ur);
 ulist_t *ulist_alloc();
 void ulist_insert(ulist_t *ulst, unresolved_t *ur);
 unresolved_t *ulist_next(ulist_t *ulst);
+void ulist_remove_with_pid(ulist_t *ulst, int pid);

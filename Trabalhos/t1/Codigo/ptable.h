@@ -49,5 +49,6 @@ void ptable_insert_process(ptable_t *ptbl, process_t *proc);
 void ptable_remove_process(ptable_t *ptbl, process_t *proc);
 process_t *ptable_next_ready_process_to_head(ptable_t *ptbl);
 process_t *ptable_find(ptable_t *ptbl, int pid);
+void ptable_check_waiting(ptable_t *ptbl);
 
 #endif // PTABLE_H

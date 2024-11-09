@@ -213,10 +213,9 @@ static void so_trata_pendencias(so_t *self) {
             self->ulst->head = curr->next;
             curr = self->ulst->head;
         }
-
-        // console_printf("pid: %d %s\n", process_pid(curr->proc),
-        //                so_resolve(self, curr) ? "to ready" : "still blocked");
     }
+
+    ptable_check_waiting(self->ptbl); 
 }
 
 static void so_escalona(so_t *self) {

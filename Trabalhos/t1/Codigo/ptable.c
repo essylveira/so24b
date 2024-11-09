@@ -201,3 +201,17 @@ process_t *ptable_find(ptable_t *ptbl, int pid) {
 
     return curr;
 }
+
+// :|
+void ptable_check_waiting(ptable_t *ptbl) {
+    
+    process_t *curr = ptbl->head;
+
+    while (curr) {
+        if (curr->st == blocked && curr->A == 9 && !ptable_find(ptbl, curr->X)) {
+            curr->st = ready;
+        }
+
+        curr = curr->next;
+    }
+}

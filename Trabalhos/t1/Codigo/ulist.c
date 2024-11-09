@@ -11,6 +11,7 @@ unresolved_t *unresolved_alloc(process_t *proc, dispositivo_id_t check,
     ur->check_disp = check;
     ur->access_disp = access;
     ur->disp_kind = disp_kind;
+    ur->next = NULL;
 
     return ur;
 }
@@ -64,7 +65,22 @@ void ulist_remove(ulist_t *ulst, unresolved_t *ur) {
     }
 
     if (prev) {
-        prev->next = 0;
+        prev->next = NULL;
     } else {
+    }
+}
+
+void ulist_remove_with_pid(ulist_t *ulst, int pid) {
+
+    unresolved_t *prev = NULL;
+    unresolved_t *curr = ulst->head;
+
+    while (curr) {
+        if (process_pid(curr->proc) == pid) {
+            prev->next = curr->next;
+            curr = prev->next;
+        } else {
+            curr = curr->next;
+        }
     }
 }
