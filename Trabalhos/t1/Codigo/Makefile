@@ -9,7 +9,7 @@ SHELL = /bin/bash
 
 # arquivos objeto compilados (.o) que compõem o simulador (main) e o montador
 OBJS_MAIN = cpu.o es.o memoria.o relogio.o console.o terminal.o tela_curses.o \
-		instrucao.o err.o programa.o controle.o ptable.o main.o \
+		instrucao.o err.o programa.o controle.o ptable.o ulist.o main.o \
 		so.o irq.o
 OBJS_MONTADOR = instrucao.o err.o montador.o
 OBJS = ${OBJS_MAIN} ${OBJS_MONTADOR}

@@ -7,12 +7,10 @@
 #include <stdlib.h>
 
 struct process {
-    unsigned int pid;
+    int pid;
     int PC, A, X, erro, complemento, modo;
     pstate st;
     process_t *next;
-    int *waiting;
-    int waiting_n;
 };
 
 struct ptable {
@@ -23,7 +21,7 @@ struct ptable {
 process_t *process_create() {
     process_t *proc = calloc(1, sizeof(process_t));
 
-    static unsigned int pid = 0;
+    static int pid = 0;
     proc->pid = pid++;
 
     proc->modo = usuario;
@@ -169,7 +167,7 @@ void ptable_remove_process(ptable_t *ptbl, process_t *proc) {
     if (prev) {
         prev->next = curr->next;
     } else {
-        ptbl->head = NULL;
+        ptbl->head = curr->next;
     }
 
     proc->next = NULL;
@@ -194,7 +192,7 @@ process_t *ptable_next_ready_process_to_head(ptable_t *ptbl) {
     return curr;
 }
 
-process_t *ptable_find(ptable_t *ptbl, unsigned int pid) {
+process_t *ptable_find(ptable_t *ptbl, int pid) {
     process_t *curr = ptbl->head;
 
     while (curr && curr->pid != pid) {
