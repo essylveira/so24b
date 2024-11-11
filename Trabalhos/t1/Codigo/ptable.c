@@ -225,33 +225,32 @@ void ptable_check_waiting(ptable_t *ptbl) {
     }
 }
 
-void ptable_move_to_end(process_t *curr) {
+void ptable_move_to_end(ptable_t *ptbl) {
+    process_t *curr = ptbl->head;
+    process_t *last = ptbl->head;
 
-    process_t *to_end = curr;
-
-    while (curr && curr->next) {
-        curr = curr->next;
+    if (!curr || !curr->next) {
+        return;
     }
 
-    if (curr != to_end) {
-        curr->next = to_end;
+    while (last->next) {
+        last = last->next;
     }
 
-    to_end->quantum = QUANTUM;
-    to_end->next = NULL;
+    ptbl->head = curr->next;
+
+    last->next = curr;
+    curr->next = NULL;
 }
+
+
 
 void ptable_preemptive_move(ptable_t *ptbl) {
 
     process_t *curr = ptbl->head;
 
-    while (curr) {
-        if (curr->quantum == 0) {
-            process_t *temp = curr->next;
-            ptable_move_to_end(curr);
-            curr = temp;
-        } else {
-            curr = curr->next;
-        }
+    if (curr && curr->quantum == 0) {
+        curr->quantum = QUANTUM;
+        ptable_move_to_end(ptbl);
     }
 }

@@ -5,7 +5,7 @@
 #include "cpu.h"
 #include "err.h"
 
-#define QUANTUM 2 
+#define QUANTUM 50 
 
 typedef enum pstate {
     blocked,

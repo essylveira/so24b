@@ -227,7 +227,10 @@ static void so_escalona(so_t *self) {
     ptable_preemptive_move(self->ptbl);
 
     process_t *next = ptable_next_ready_process_to_head(self->ptbl);
-    ptable_set_running_process(self->ptbl, next);
+    if (next) {
+        ptable_set_running_process(self->ptbl, next);
+    }    
+        
 }
 
 static int so_despacha(so_t *self) {
