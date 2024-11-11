@@ -5,6 +5,8 @@
 #include "cpu.h"
 #include "err.h"
 
+#define QUANTUM 2 
+
 typedef enum pstate {
     blocked,
     ready
@@ -31,6 +33,9 @@ int process_A(process_t *proc);
 err_t process_erro(process_t *proc);
 int process_complemento(process_t *proc);
 cpu_modo_t process_modo(process_t *proc);
+int process_quantum(process_t *proc);
+
+void process_dec_quantum(process_t *proc);
 
 void process_set_PC(process_t *proc, int PC);
 void process_set_X(process_t *proc, int X);
@@ -50,5 +55,6 @@ void ptable_remove_process(ptable_t *ptbl, process_t *proc);
 process_t *ptable_next_ready_process_to_head(ptable_t *ptbl);
 process_t *ptable_find(ptable_t *ptbl, int pid);
 void ptable_check_waiting(ptable_t *ptbl);
+void ptable_preemptive_move(ptable_t *ptbl);
 
 #endif // PTABLE_H

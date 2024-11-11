@@ -4,7 +4,7 @@
 
 ; usa bastante CPU e pouca E/S
 N        define 1000  ; até quanto vai contar
-CADA     define 10   ; a cada tantos, imprime o valor atual
+CADA     define 250   ; a cada tantos, imprime o valor atual
 
          desv main
 prog     string 'p1  (bastante CPU pouca E/S)                                       '

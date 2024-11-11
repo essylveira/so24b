@@ -215,7 +215,7 @@ static void so_trata_pendencias(so_t *self) {
         }
     }
 
-    ptable_check_waiting(self->ptbl); 
+    ptable_check_waiting(self->ptbl);
 }
 
 static void so_escalona(so_t *self) {
@@ -223,6 +223,8 @@ static void so_escalona(so_t *self) {
     //   corrente; pode continuar sendo o mesmo de antes ou não
     // na primeira versão, escolhe um processo caso o processo corrente não
     // possa continuar executando. depois, implementar escalonador melhor
+
+    ptable_preemptive_move(self->ptbl);
 
     process_t *next = ptable_next_ready_process_to_head(self->ptbl);
     ptable_set_running_process(self->ptbl, next);
@@ -337,6 +339,10 @@ static void so_trata_irq_relogio(so_t *self) {
     //   por exemplo, decrementa o quantum do processo corrente, quando se tem
     //   um escalonador com quantum
     // console_printf("SO: interrupção do relógio (não tratada)");
+    process_t *running = ptable_running_process(self->ptbl);
+    if (running) {
+        process_dec_quantum(running);
+    }
 }
 
 // foi gerada uma interrupção para a qual o SO não está preparado

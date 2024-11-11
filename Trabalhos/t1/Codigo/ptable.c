@@ -9,6 +9,8 @@
 struct process {
     int pid;
     int PC, A, X, erro, complemento, modo;
+    int quantum;
+    float prio;
     pstate st;
     process_t *next;
 };
@@ -24,6 +26,8 @@ process_t *process_create() {
     static int pid = 0;
     proc->pid = pid++;
 
+    proc->quantum = QUANTUM;
+    proc->prio = 0.5;
     proc->modo = usuario;
     proc->st = ready;
 
@@ -83,6 +87,8 @@ cpu_modo_t process_modo(process_t *proc) { return proc->modo; }
 
 int process_complemento(process_t *proc) { return proc->complemento; }
 
+int process_quantum(process_t *proc) { return proc->quantum; }
+
 void process_set_PC(process_t *proc, int PC) { proc->PC = PC; }
 
 void process_set_X(process_t *proc, int X) { proc->X = X; }
@@ -96,6 +102,8 @@ void process_set_modo(process_t *proc, cpu_modo_t modo) { proc->modo = modo; }
 void process_set_complemento(process_t *proc, int complemento) {
     proc->complemento = complemento;
 }
+
+void process_dec_quantum(process_t *proc) { proc->quantum--; }
 
 ptable_t *ptable_create() {
 
@@ -188,7 +196,7 @@ process_t *ptable_next_ready_process_to_head(ptable_t *ptbl) {
         curr->next = ptbl->head;
         ptbl->head = curr;
     }
-   
+
     return curr;
 }
 
@@ -204,14 +212,46 @@ process_t *ptable_find(ptable_t *ptbl, int pid) {
 
 // :|
 void ptable_check_waiting(ptable_t *ptbl) {
-    
+
     process_t *curr = ptbl->head;
 
     while (curr) {
-        if (curr->st == blocked && curr->A == 9 && !ptable_find(ptbl, curr->X)) {
+        if (curr->st == blocked && curr->A == 9 &&
+            !ptable_find(ptbl, curr->X)) {
             curr->st = ready;
         }
 
         curr = curr->next;
+    }
+}
+
+void ptable_move_to_end(process_t *curr) {
+
+    process_t *to_end = curr;
+
+    while (curr && curr->next) {
+        curr = curr->next;
+    }
+
+    if (curr != to_end) {
+        curr->next = to_end;
+    }
+
+    to_end->quantum = QUANTUM;
+    to_end->next = NULL;
+}
+
+void ptable_preemptive_move(ptable_t *ptbl) {
+
+    process_t *curr = ptbl->head;
+
+    while (curr) {
+        if (curr->quantum == 0) {
+            process_t *temp = curr->next;
+            ptable_move_to_end(curr);
+            curr = temp;
+        } else {
+            curr = curr->next;
+        }
     }
 }
