@@ -162,8 +162,6 @@ bool so_resolve(so_t *self, unresolved_t *ur) {
     dispositivo_id_t access_disp = unresolved_access_disp(ur);
     process_t *proc = unresolved_proc(ur);
 
-    console_printf("%d %d\n", access_disp, check_disp);
-
     if (disp_kind == read) {
 
         int data;
@@ -229,8 +227,7 @@ static void so_escalona(so_t *self) {
     process_t *next = ptable_next_ready_process_to_head(self->ptbl);
     if (next) {
         ptable_set_running_process(self->ptbl, next);
-    }    
-        
+    }
 }
 
 static int so_despacha(so_t *self) {

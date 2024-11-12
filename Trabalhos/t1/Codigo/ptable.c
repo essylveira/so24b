@@ -243,11 +243,13 @@ void ptable_move_to_end(ptable_t *ptbl) {
     curr->next = NULL;
 }
 
-
-
 void ptable_preemptive_move(ptable_t *ptbl) {
 
-    process_t *curr = ptbl->head;
+    process_t *curr = ptbl->running;
+
+    if (!curr) {
+        return;
+    }
 
     if (curr && curr->quantum == 0) {
         curr->quantum = QUANTUM;
