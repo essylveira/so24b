@@ -1,85 +1,53 @@
 #include "ulist.h"
-#include "dispositivos.h"
 #include <stdlib.h>
+#include <stdio.h>
 
+waiting_t *waiting_alloc(process_t *waiting, process_t *to_be_waited) {
+    waiting_t *wt = calloc(1, sizeof(waiting_t));
 
-unresolved_t *unresolved_alloc(process_t *proc, dispositivo_id_t check,
-                               dispositivo_id_t access, disp_kind_t disp_kind) {
-    unresolved_t *ur = malloc(sizeof(unresolved_t));
+    wt->waiting = waiting;
+    wt->to_be_waited = to_be_waited;
 
-    ur->proc = proc;
-    ur->check_disp = check;
-    ur->access_disp = access;
-    ur->disp_kind = disp_kind;
-    ur->next = NULL;
-
-    return ur;
+    return wt;
 }
 
-process_t *unresolved_proc(unresolved_t *ur) {
-    return ur->proc;
+wlist_t *wlist_alloc() {
+    wlist_t *wlst = calloc(1, sizeof(wlist_t));
+    return wlst;
 }
 
-dispositivo_id_t unresolved_check_disp(unresolved_t *ur) {
-    return ur->check_disp;
-}
+void wlist_insert(wlist_t *wlst, waiting_t *wt) {
 
-dispositivo_id_t unresolved_access_disp(unresolved_t *ur) {
-    return ur->access_disp;
-}
-
-disp_kind_t unresolved_disp_kind(unresolved_t *ur) {
-    return ur->disp_kind;
-}
-
-ulist_t *ulist_alloc() {
-
-    ulist_t *ulst = calloc(1, sizeof(ulist_t));
-
-    return ulst;
-}
-
-void ulist_insert(ulist_t *ulst, unresolved_t *ur) {
-
-    unresolved_t *curr = ulst->head;
+    waiting_t *curr = wlst->head;
 
     while (curr && curr->next) {
         curr = curr->next;
     }
 
     if (curr) {
-        curr->next = ur;
+        curr->next = wt;
     } else {
-        ulst->head = ur;
+        wlst->head = wt;
     }
 }
 
-void ulist_remove(ulist_t *ulst, unresolved_t *ur) {
-    
-    unresolved_t *prev = NULL;
-    unresolved_t *curr = ulst->head;
+void wlist_solve(wlist_t *wlst, process_t *to_be_waited) {
+
+    waiting_t *prev = NULL;
+    waiting_t *curr = wlst->head;
 
     while (curr) {
-        prev = curr;
-        curr = curr->next;
-    }
-
-    if (prev) {
-        prev->next = NULL;
-    } else {
-    }
-}
-
-void ulist_remove_with_pid(ulist_t *ulst, int pid) {
-
-    unresolved_t *prev = NULL;
-    unresolved_t *curr = ulst->head;
-
-    while (curr) {
-        if (process_pid(curr->proc) == pid) {
-            prev->next = curr->next;
-            curr = prev->next;
+        if (curr->to_be_waited == to_be_waited) {
+            process_set_state(curr->waiting, ready);
+            if (prev) {
+                prev->next = curr->next;
+                curr = prev->next;
+            } else {
+                curr = NULL;
+                wlst->head = NULL;
+            }
         } else {
+            prev = curr;
             curr = curr->next;
         }
     }

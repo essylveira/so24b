@@ -4,8 +4,15 @@
 #include "memoria.h"
 #include "cpu.h"
 #include "err.h"
+#include <stdio.h>
 
 #define QUANTUM 5 
+
+typedef enum pendency {
+    none,
+    read,
+    write
+} pendency_t;
 
 typedef enum pstate {
     blocked,
@@ -21,6 +28,7 @@ void process_free(process_t *proc);
 void process_save_registers(process_t *proc, mem_t *mem);
 void process_load_registers(process_t *proc, mem_t *mem);
 void process_printf(process_t *proc);
+void ptable_fprintf(ptable_t *ptbl, FILE *fp);
 
 pstate process_state(process_t *proc);
 void process_set_state(process_t *proc, pstate st);
@@ -34,6 +42,7 @@ err_t process_erro(process_t *proc);
 int process_complemento(process_t *proc);
 cpu_modo_t process_modo(process_t *proc);
 int process_quantum(process_t *proc);
+pendency_t process_pendency(process_t *proc);
 
 void process_dec_quantum(process_t *proc);
 
@@ -43,6 +52,8 @@ void process_set_A(process_t *proc, int A);
 void process_set_erro(process_t *proc, err_t erro);
 void process_set_complemento(process_t *proc, int complemento);
 void process_set_modo(process_t *proc, cpu_modo_t modo);
+void process_set_pendency(process_t *proc, pendency_t pendency);
+process_t *process_next(process_t *proc);
 
 ptable_t *ptable_create();
 void ptable_free(ptable_t *ptbl);

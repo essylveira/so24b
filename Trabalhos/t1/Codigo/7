@@ -155,25 +155,6 @@ void ptable_printf(ptable_t *ptbl) {
     }
 }
 
-void ptable_fprintf(ptable_t *ptbl, FILE *fp) {
-
-    process_t *curr = ptbl->head;
-
-    fprintf(fp, "\n\nrunning: %p\n", ptable_running_process(ptbl));
-
-    while (curr) {
-        fprintf(fp, "%d %p %s", process_pid(curr), curr, curr->st ? "ready" : "blocked");
-        if (curr->pendency == read) {
-            fprintf(fp, "read\n");
-        } else if (curr->pendency == write) {
-            fprintf(fp, "write\n");
-        }
-        curr = curr->next;
-    }
-
-    fprintf(fp, "\n\n");
-}
-
 process_t *ptable_running_process(ptable_t *ptbl) { return ptbl->running; }
 
 process_t *ptable_head(ptable_t *ptbl) { return ptbl->head; }
