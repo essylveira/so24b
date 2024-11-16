@@ -147,9 +147,9 @@ void ptable_printf(ptable_t *ptbl) {
     while (curr) {
         printf("%d %p %s", process_pid(curr), curr, curr->st ? "ready" : "blocked");
         if (curr->pendency == read) {
-            printf("read\n");
+            printf(" read\n");
         } else if (curr->pendency == write) {
-            printf("write\n");
+            printf(" write\n");
         }
         curr = curr->next;
     }
@@ -231,15 +231,13 @@ process_t *ptable_next_ready_process_to_head(ptable_t *ptbl) {
         curr = curr->next;
     }
 
-    if (!curr) {
-        return NULL;
-    }
-
     if (prev && curr) {
         prev->next = curr->next;
         curr->next = ptbl->head;
         ptbl->head = curr;
     }
+
+    ptbl->running = curr;
 
     return curr;
 }
@@ -299,4 +297,14 @@ void ptable_preemptive_move(ptable_t *ptbl) {
         curr->quantum = QUANTUM;
         ptable_move_to_end(ptbl);
     }
+}
+
+int ptable_count(ptable_t *ptbl) {
+    process_t *curr = ptbl->head;
+    int i = 0;
+    while (curr) {
+        i++;
+        curr = curr->next;
+    }
+    return i;
 }

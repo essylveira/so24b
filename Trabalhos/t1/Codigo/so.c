@@ -11,6 +11,7 @@
 #include "ptable.h"
 #include "ulist.h"
 
+#include <assert.h>
 #include <stdbool.h>
 #include <stdio.h>
 #include <stdlib.h>
@@ -208,11 +209,6 @@ void so_resolve_write(so_t *self, process_t *proc) {
 }
 
 static void so_trata_pendencias(so_t *self) {
-    // t1: realiza ações que não são diretamente ligadas com a interrupção que
-    //   está sendo atendida:
-    // - E/S pendente
-    // - desbloqueio de processos
-    // - contabilidades
 
     process_t *curr = ptable_head(self->ptbl);
 
@@ -231,26 +227,12 @@ static void so_trata_pendencias(so_t *self) {
 }
 
 static void so_escalona(so_t *self) {
-    // escolhe o próximo processo a executar, que passa a ser o processo
-    //   corrente; pode continuar sendo o mesmo de antes ou não
-    // na primeira versão, escolhe um processo caso o processo corrente não
-    // possa continuar executando. depois, implementar escalonador melhor
 
     ptable_preemptive_move(self->ptbl);
+    ptable_next_ready_process_to_head(self->ptbl);
 
-    process_t *next = ptable_next_ready_process_to_head(self->ptbl);
-    if (next) {
-        ptable_set_running_process(self->ptbl, next);
-    }
-
-    if (next && process_state(next) == blocked) {
-        ptable_set_running_process(self->ptbl, NULL);
-    }
-
-    if (next && process_pendency(next) != none) {
-        ptable_set_running_process(self->ptbl, NULL);
-    }
-
+    console_printf("%d\n", ptable_count(self->ptbl));
+    
 }
 
 static int so_despacha(so_t *self) {
@@ -262,6 +244,10 @@ static int so_despacha(so_t *self) {
 
     if (self->erro_interno || !running) {
         return 1;
+    }
+
+    if (process_state(running) == blocked || process_pendency(running) != none) {
+        console_printf("This should not happen.\n");
     }
 
     process_load_registers(running, self->mem);

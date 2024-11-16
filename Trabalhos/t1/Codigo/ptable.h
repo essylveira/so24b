@@ -67,5 +67,6 @@ process_t *ptable_next_ready_process_to_head(ptable_t *ptbl);
 process_t *ptable_find(ptable_t *ptbl, int pid);
 void ptable_check_waiting(ptable_t *ptbl);
 void ptable_preemptive_move(ptable_t *ptbl);
+int ptable_count(ptable_t *ptbl);
 
 #endif // PTABLE_H
