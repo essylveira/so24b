@@ -117,7 +117,7 @@ pstate process_state(process_t *proc) { return proc->st; }
 void process_set_state(process_t *proc, pstate st) {
    proc->st = st;
    if (st == blocked) {
-       proc->prio += (float)( proc->t_exec / QUANTUM);
+       proc->prio += ((float)proc->t_exec / QUANTUM);
    }
 }
 
@@ -410,12 +410,7 @@ void ptable_priority_mode(ptable_t *ptbl) {
    }
 
    if (curr && curr->quantum == 0) {
-       curr->prio += (float)(curr->t_exec / QUANTUM);
+       curr->prio += ((float)curr->t_exec / QUANTUM);
        ptable_move_to_end(ptbl);
    }
 }
-
-
-
-
-
