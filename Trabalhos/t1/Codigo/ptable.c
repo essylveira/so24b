@@ -341,16 +341,12 @@ int ptable_count(ptable_t *ptbl) {
 }
 
 
-process_t *ptable_next_ready_process_to_head(ptable_t *ptbl) {
-
+void ptable_standard_mode(ptable_t *ptbl) {
 
    process_t *prev = NULL;
    process_t *curr = ptbl->head;
 
-
    while (curr && curr->st != ready) {
-
-
        prev = curr;
        curr = curr->next;
    }
@@ -366,8 +362,6 @@ process_t *ptable_next_ready_process_to_head(ptable_t *ptbl) {
    if (ptbl->running != curr) {
        ptable_set_running_process(ptbl,curr);
    }
-
-   return curr;
 }
 
 
@@ -394,12 +388,6 @@ void ptable_move_to_end(ptable_t *ptbl) {
 }
 
 
-void ptable_standard_mode(ptable_t *ptbl) {
-
-    ptable_next_ready_process_to_head(ptbl);
-
-}
-
 void ptable_preemptive_mode(ptable_t *ptbl) {
 
    process_t *curr = ptbl->running;
@@ -411,9 +399,6 @@ void ptable_preemptive_mode(ptable_t *ptbl) {
    if (curr && curr->quantum == 0) {
        ptable_move_to_end(ptbl);
    }
-
-   ptable_next_ready_process_to_head(ptbl);
-
 }
 
 void ptable_priority_mode(ptable_t *ptbl) {
@@ -428,9 +413,6 @@ void ptable_priority_mode(ptable_t *ptbl) {
        curr->prio += (float)(curr->t_exec / QUANTUM);
        ptable_move_to_end(ptbl);
    }
-
-   ptable_next_ready_process_to_head(ptbl);
-
 }
 
 

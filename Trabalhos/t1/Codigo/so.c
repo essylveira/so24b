@@ -225,9 +225,10 @@ static void so_trata_pendencias(so_t *self) {
 
 static void so_escalona(so_t *self) {
     
-    //ptable_standard_mode(self->ptbl);
     ptable_preemptive_mode(self->ptbl);
     //ptable_priority_mode(self->ptbl);
+
+    ptable_standard_mode(self->ptbl);
     
     console_printf("%d\n", ptable_count(self->ptbl));
   

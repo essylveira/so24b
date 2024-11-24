@@ -84,8 +84,8 @@ void ptable_check_waiting(ptable_t *ptbl);
 int ptable_count(ptable_t *ptbl);
 
 
-process_t *ptable_next_ready_process_to_head(ptable_t *ptbl);
 void ptable_move_to_end(ptable_t *ptbl);
+
 void ptable_standard_mode(ptable_t *ptbl);
 void ptable_preemptive_mode(ptable_t *ptbl);
 void ptable_priority_mode(ptable_t *ptbl);
