@@ -28,6 +28,8 @@ typedef struct process process_t;
 typedef struct ptable ptable_t;
 typedef struct log log_t;
 
+log_t *log_create();
+void log_free(log_t *log);
 
 process_t *process_create();
 void process_free(process_t *proc);
@@ -84,7 +86,9 @@ int ptable_count(ptable_t *ptbl);
 
 process_t *ptable_next_ready_process_to_head(ptable_t *ptbl);
 void ptable_move_to_end(ptable_t *ptbl);
+void ptable_standard_mode(ptable_t *ptbl);
 void ptable_preemptive_mode(ptable_t *ptbl);
+void ptable_priority_mode(ptable_t *ptbl);
 
 
 #endif // PTABLE_H

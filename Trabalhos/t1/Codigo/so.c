@@ -29,6 +29,7 @@ struct so_t {
   
    ptable_t *ptbl;
    wlist_t *wlst;
+   log_t *log;
    FILE *fp;
 };
 
@@ -66,10 +67,9 @@ so_t *so_cria(cpu_t *cpu, mem_t *mem, es_t *es, console_t *console) {
 
    self->ptbl = ptable_create();
    self->wlst = wlist_alloc();
-
+   self->log = log_create();
 
    self->fp = fopen("logs.txt", "w");
-
 
    return self;
 }
@@ -224,13 +224,12 @@ static void so_trata_pendencias(so_t *self) {
 
 
 static void so_escalona(so_t *self) {
-
-
-   ptable_preemptive_mode(self->ptbl);
-   ptable_next_ready_process_to_head(self->ptbl);
-
-
-   console_printf("%d\n", ptable_count(self->ptbl));
+    
+    //ptable_standard_mode(self->ptbl);
+    ptable_preemptive_mode(self->ptbl);
+    //ptable_priority_mode(self->ptbl);
+    
+    console_printf("%d\n", ptable_count(self->ptbl));
   
 }
 
@@ -485,9 +484,9 @@ static void so_chamada_cria_proc(so_t *self) {
        return;
    }
 
-
    process_t *created = process_create();
 
+   // log -> cria processo ++
 
    process_set_PC(created, mem_address);
 

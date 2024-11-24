@@ -42,6 +42,14 @@ struct log{
     int mean_time[3]; // p1, p2, p3
 };
 
+log_t *log_create() {
+
+   log_t *log = calloc(1, sizeof(ptable_t));
+
+   return log;
+}
+
+void log_free(log_t *log) { free(log); }
 
 process_t *process_create() {
    process_t *proc = calloc(1, sizeof(process_t));
@@ -359,7 +367,6 @@ process_t *ptable_next_ready_process_to_head(ptable_t *ptbl) {
        ptable_set_running_process(ptbl,curr);
    }
 
-
    return curr;
 }
 
@@ -387,21 +394,43 @@ void ptable_move_to_end(ptable_t *ptbl) {
 }
 
 
+void ptable_standard_mode(ptable_t *ptbl) {
+
+    ptable_next_ready_process_to_head(ptbl);
+
+}
+
 void ptable_preemptive_mode(ptable_t *ptbl) {
 
-
    process_t *curr = ptbl->running;
-
 
    if (!curr) {
        return;
    }
 
+   if (curr && curr->quantum == 0) {
+       ptable_move_to_end(ptbl);
+   }
+
+   ptable_next_ready_process_to_head(ptbl);
+
+}
+
+void ptable_priority_mode(ptable_t *ptbl) {
+    
+    process_t *curr = ptbl->running;
+
+   if (!curr) {
+       return;
+   }
 
    if (curr && curr->quantum == 0) {
        curr->prio += (float)(curr->t_exec / QUANTUM);
        ptable_move_to_end(ptbl);
    }
+
+   ptable_next_ready_process_to_head(ptbl);
+
 }
 
 
