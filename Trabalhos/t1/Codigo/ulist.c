@@ -31,14 +31,14 @@ void wlist_insert(wlist_t *wlst, waiting_t *wt) {
     }
 }
 
-void wlist_solve(wlist_t *wlst, process_t *to_be_waited) {
+void wlist_solve(wlist_t *wlst, process_t *to_be_waited, log_t *log) {
 
     waiting_t *prev = NULL;
     waiting_t *curr = wlst->head;
 
     while (curr) {
         if (curr->to_be_waited == to_be_waited) {
-            process_set_state(curr->waiting, ready);
+            process_set_state(curr->waiting, ready, log);
             if (prev) {
                 prev->next = curr->next;
                 curr = prev->next;

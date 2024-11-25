@@ -5,6 +5,7 @@
 
 #include "so.h"
 #include "dispositivos.h"
+#include "es.h"
 #include "irq.h"
 #include "programa.h"
 #include "ptable.h"
@@ -27,6 +28,8 @@ struct so_t {
     ptable_t *ptbl;
     wlist_t *wlst;
     log_t *log;
+
+    bool finished;
 };
 
 static int so_trata_interrupcao(void *argC, int reg_A);
@@ -59,6 +62,8 @@ so_t *so_cria(cpu_t *cpu, mem_t *mem, es_t *es, console_t *console) {
     self->ptbl = ptable_create();
     self->wlst = wlist_alloc();
     self->log = log_create();
+
+    self->finished = false;
 
     return self;
 }
@@ -125,7 +130,7 @@ void so_resolve_read(so_t *self, process_t *proc) {
     process_set_A(proc, data);
 
     process_set_pendency(proc, none);
-    process_set_state(proc, ready);
+    process_set_state(proc, ready, self->log);
 }
 
 void so_resolve_write(so_t *self, process_t *proc) {
@@ -154,7 +159,7 @@ void so_resolve_write(so_t *self, process_t *proc) {
     process_set_A(proc, 0);
 
     process_set_pendency(proc, none);
-    process_set_state(proc, ready);
+    process_set_state(proc, ready, self->log);
 }
 
 static void so_trata_pendencias(so_t *self) {
@@ -176,8 +181,17 @@ static void so_trata_pendencias(so_t *self) {
 }
 
 static void so_escalona(so_t *self) {
-    ptable_priority_mode(self->ptbl);
-    ptable_standard_mode(self->ptbl);
+    //ptable_preemptive_mode(self->ptbl, self->log);
+    ptable_priority_mode(self->ptbl, self->log);
+    ptable_standard_mode(self->ptbl, self->log);
+
+    process_t *curr = ptable_head(self->ptbl);
+
+    while (curr) {
+        console_printf("pid: %d - prio: %f - %s", process_pid(curr), process_prio(curr), !process_state(curr) ? "blocked" : "ready");
+        curr = process_next(curr);
+    }
+    console_printf("-------------");
 }
 
 static int so_despacha(so_t *self) {
@@ -230,7 +244,7 @@ static void so_trata_irq_reset(so_t *self) {
 
     ptable_insert_process(self->ptbl, proc);
 
-    ptable_set_running_process(self->ptbl, proc);
+    ptable_set_running_process(self->ptbl, proc, self->log);
 
     process_load_registers(proc, self->mem);
 }
@@ -259,6 +273,13 @@ static void so_trata_irq_relogio(so_t *self) {
     if (running) {
         process_dec_quantum(running);
     }
+
+    if (ptable_head(self->ptbl) == NULL && !self->finished) {
+        self->finished = true;
+        es_le(self->es, D_RELOGIO_INSTRUCOES, &self->log->total_time);
+        console_printf("%d", self->log->total_time);
+    }
+
 }
 
 static void so_trata_irq_desconhecida(so_t *self, int irq) {
@@ -280,18 +301,23 @@ static void so_trata_irq_chamada_sistema(so_t *self) {
     switch (id_chamada) {
     case SO_LE:
         so_chamada_le(self);
+        self->log->number_interruptions[0]++;
         break;
     case SO_ESCR:
         so_chamada_escr(self);
+        self->log->number_interruptions[1]++;
         break;
     case SO_CRIA_PROC:
         so_chamada_cria_proc(self);
+        self->log->number_interruptions[2]++;
         break;
     case SO_MATA_PROC:
         so_chamada_mata_proc(self);
+        self->log->number_interruptions[3]++;
         break;
     case SO_ESPERA_PROC:
         so_chamada_espera_proc(self);
+        self->log->number_interruptions[4]++;
         break;
     default:
         console_printf("SO: chamada de sistema desconhecida (%d)", id_chamada);
@@ -317,7 +343,7 @@ static void so_chamada_le(so_t *self) {
     }
 
     if (!available) {
-        process_set_state(running, blocked);
+        process_set_state(running, blocked, self->log);
         process_set_pendency(running, read);
         return;
     }
@@ -345,7 +371,7 @@ static void so_chamada_escr(so_t *self) {
     }
 
     if (!available) {
-        process_set_state(running, blocked);
+        process_set_state(running, blocked, self->log);
         process_set_pendency(running, write);
         return;
     }
@@ -382,7 +408,7 @@ static void so_chamada_cria_proc(so_t *self) {
 
     process_t *created = process_create();
 
-    // log -> cria processo ++
+    self->log->process_created++;
 
     process_set_PC(created, mem_address);
 
@@ -401,13 +427,13 @@ static void so_chamada_mata_proc(so_t *self) {
 
     if (found) {
         ptable_remove_process(self->ptbl, found);
-        wlist_solve(self->wlst, found);
+        wlist_solve(self->wlst, found, self->log);
 
         if (pid == 0) {
-            ptable_set_running_process(self->ptbl, NULL);
+            ptable_set_running_process(self->ptbl, NULL, self->log);
         }
 
-        process_set_state(found, ready);
+        process_set_state(found, ready, self->log);
     }
 }
 
@@ -422,9 +448,9 @@ static void so_chamada_espera_proc(so_t *self) {
     if (found) {
         waiting_t *wt = waiting_alloc(running, found);
         wlist_insert(self->wlst, wt);
-        process_set_state(running, blocked);
+        process_set_state(running, blocked, self->log);
     } else {
-        process_set_state(running, ready);
+        process_set_state(running, ready, self->log);
     }
 }
 

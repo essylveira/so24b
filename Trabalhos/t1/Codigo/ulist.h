@@ -19,4 +19,4 @@ struct wlist {
 waiting_t *waiting_alloc(process_t *waiting, process_t *to_be_waited);
 wlist_t *wlist_alloc();
 void wlist_insert(wlist_t *wlst, waiting_t *wt);
-void wlist_solve(wlist_t *wlst, process_t *to_be_waited);
+void wlist_solve(wlist_t *wlst, process_t *to_be_waited, log_t *);
