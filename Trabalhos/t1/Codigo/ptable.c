@@ -120,9 +120,7 @@ void process_dec_quantum(process_t *proc) {
     proc->t_exec++;
 }
 
-float process_prio(process_t *proc) {
-    return proc->prio;
-}
+float process_prio(process_t *proc) { return proc->prio; }
 
 ptable_t *ptable_create() {
 
@@ -247,31 +245,23 @@ int ptable_count(ptable_t *ptbl) {
 }
 
 void ptable_standard_mode(ptable_t *ptbl, log_t *log) {
-
+    process_t *prev = NULL;
     process_t *curr = ptbl->head;
 
     while (curr && curr->st != ready) {
+        prev = curr;
         curr = curr->next;
     }
 
-    ptbl->running = curr;
-    // process_t *prev = NULL;
-    // process_t *curr = ptbl->head;
-    //
-    // while (curr && curr->st != ready) {
-    //     prev = curr;
-    //     curr = curr->next;
-    // }
-    //
-    // if (prev && curr) {
-    //     prev->next = curr->next;
-    //     curr->next = ptbl->head;
-    //     ptbl->head = curr;
-    // }
-    //
-    // if (ptbl->running != curr) {
-    //     ptable_set_running_process(ptbl, curr, log);
-    // }
+    if (prev && curr) {
+        prev->next = curr->next;
+        curr->next = ptbl->head;
+        ptbl->head = curr;
+    }
+
+    if (ptbl->running != curr) {
+        ptable_set_running_process(ptbl, curr, log);
+    }
 }
 
 void ptable_move_to_end(ptable_t *ptbl) {
@@ -307,14 +297,14 @@ void ptable_preemptive_mode(ptable_t *ptbl, log_t *log) {
     }
 }
 
-process_t* sorted_insert(process_t* sorted_head, process_t* new_node) {
+process_t *sorted_insert(process_t *sorted_head, process_t *new_node) {
 
     if (sorted_head == NULL || new_node->prio <= sorted_head->prio) {
         new_node->next = sorted_head;
         return new_node;
     }
 
-    process_t* current = sorted_head;
+    process_t *current = sorted_head;
     while (current->next != NULL && current->next->prio < new_node->prio) {
         current = current->next;
     }
@@ -325,13 +315,14 @@ process_t* sorted_insert(process_t* sorted_head, process_t* new_node) {
     return sorted_head;
 }
 
-process_t* insertion_sort(process_t* head) {
-    process_t* sorted_head = NULL;  // Start with an empty sorted list
-    process_t* current = head;
+process_t *insertion_sort(process_t *head) {
+    process_t *sorted_head = NULL; // Start with an empty sorted list
+    process_t *current = head;
 
     while (current != NULL) {
-        process_t* next_node = current->next;  // Save the next node
-        sorted_head = sorted_insert(sorted_head, current);  // Insert into sorted list
+        process_t *next_node = current->next; // Save the next node
+        sorted_head =
+            sorted_insert(sorted_head, current); // Insert into sorted list
         current = next_node;
     }
 
