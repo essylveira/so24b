@@ -181,17 +181,21 @@ static void so_trata_pendencias(so_t *self) {
 }
 
 static void so_escalona(so_t *self) {
+
     //ptable_preemptive_mode(self->ptbl, self->log);
+
     ptable_priority_mode(self->ptbl, self->log);
+
     ptable_standard_mode(self->ptbl, self->log);
 
     process_t *curr = ptable_head(self->ptbl);
 
     while (curr) {
-        console_printf("pid: %d - prio: %f - %s", process_pid(curr), process_prio(curr), !process_state(curr) ? "blocked" : "ready");
+        console_printf("pid: %d, prio: %f", process_pid(curr), process_prio(curr));
         curr = process_next(curr);
     }
-    console_printf("-------------");
+
+    console_printf("----------------");
 }
 
 static int so_despacha(so_t *self) {

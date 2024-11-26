@@ -10,7 +10,7 @@ struct process {
     int pid;
     int PC, A, X, erro, complemento, modo;
     int quantum;
-    int t_exec;
+    float t_exec;
     float prio;
     pstate st;
     process_t *next;
@@ -86,7 +86,7 @@ pstate process_state(process_t *proc) { return proc->st; }
 void process_set_state(process_t *proc, pstate st, log_t *log) {
     proc->st = st;
     if (st == blocked) {
-        proc->prio += ((float)proc->t_exec / QUANTUM) / 2;
+        proc->prio += (proc->t_exec / QUANTUM) / 2;
     }
     log->number_states_process[proc->pid - 1][st]++;
 }
@@ -234,30 +234,21 @@ void ptable_check_waiting(ptable_t *ptbl) {
     }
 }
 
-int ptable_count(ptable_t *ptbl) {
-    process_t *curr = ptbl->head;
-    int i = 0;
-    while (curr) {
-        i++;
-        curr = curr->next;
-    }
-    return i;
-}
-
 void ptable_standard_mode(ptable_t *ptbl, log_t *log) {
-    process_t *prev = NULL;
+
+    // process_t *prev = NULL;
     process_t *curr = ptbl->head;
 
     while (curr && curr->st != ready) {
-        prev = curr;
+        // prev = curr;
         curr = curr->next;
     }
 
-    if (prev && curr) {
-        prev->next = curr->next;
-        curr->next = ptbl->head;
-        ptbl->head = curr;
-    }
+    // if (prev && curr) {
+    //     prev->next = curr->next;
+    //     curr->next = ptbl->head;
+    //     ptbl->head = curr;
+    // }
 
     if (ptbl->running != curr) {
         ptable_set_running_process(ptbl, curr, log);
@@ -265,6 +256,7 @@ void ptable_standard_mode(ptable_t *ptbl, log_t *log) {
 }
 
 void ptable_move_to_end(ptable_t *ptbl) {
+
     process_t *curr = ptbl->head;
     process_t *last = ptbl->head;
 
@@ -293,44 +285,55 @@ void ptable_preemptive_mode(ptable_t *ptbl, log_t *log) {
     if (curr && curr->quantum == 0) {
         log->number_preemptions++;
         log->number_preemptions_process[curr->pid - 1]++;
+
         ptable_move_to_end(ptbl);
     }
 }
 
-process_t *sorted_insert(process_t *sorted_head, process_t *new_node) {
+static process_t *ptable_minimum_prio(ptable_t *ptbl) {
 
-    if (sorted_head == NULL || new_node->prio <= sorted_head->prio) {
-        new_node->next = sorted_head;
-        return new_node;
+    if (!ptbl->head) {
+        return NULL;
     }
 
-    process_t *current = sorted_head;
-    while (current->next != NULL && current->next->prio < new_node->prio) {
-        current = current->next;
+    process_t *prev = NULL;
+    process_t *curr = ptbl->head;
+
+    process_t *minprev = NULL;
+    process_t *minimum = ptbl->head;
+
+    while (curr) {
+        if (curr->prio < minimum->prio) {
+            minprev = prev;
+            minimum = curr;
+        }
+
+        prev = curr;
+        curr = curr->next;
     }
 
-    new_node->next = current->next;
-    current->next = new_node;
+    if (minprev) {
+        minprev->next = minimum->next;
+    } else {
+        ptbl->head = minimum->next;
+    }
 
-    return sorted_head;
+    minimum->next = NULL;
+
+    return minimum;
 }
 
-process_t *insertion_sort(process_t *head) {
-    process_t *sorted_head = NULL; // Start with an empty sorted list
-    process_t *current = head;
+void ptable_sort_by_priority(ptable_t *ptbl) {
 
-    while (current != NULL) {
-        process_t *next_node = current->next; // Save the next node
-        sorted_head =
-            sorted_insert(sorted_head, current); // Insert into sorted list
-        current = next_node;
+    process_t *head = ptable_minimum_prio(ptbl);
+    process_t *curr = head;
+
+    while (curr) {
+        curr->next = ptable_minimum_prio(ptbl);
+        curr = curr->next;
     }
 
-    return sorted_head;
-}
-
-static void ptable_sort_by_priority(ptable_t *ptbl) {
-    ptbl->head = insertion_sort(ptbl->head);
+    ptbl->head = head;
 }
 
 void ptable_priority_mode(ptable_t *ptbl, log_t *log) {
@@ -344,7 +347,9 @@ void ptable_priority_mode(ptable_t *ptbl, log_t *log) {
     if (curr && curr->quantum == 0) {
         log->number_preemptions++;
         log->number_preemptions_process[curr->pid - 1]++;
-        curr->prio += ((float)curr->t_exec / QUANTUM) / 2.0;
-        ptable_sort_by_priority(ptbl);
+
+        curr->prio += (curr->t_exec / QUANTUM) / 2.0;
     }
+
+    ptable_sort_by_priority(ptbl);
 }
