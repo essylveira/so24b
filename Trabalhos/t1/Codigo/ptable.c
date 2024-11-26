@@ -252,6 +252,10 @@ void ptable_standard_mode(ptable_t *ptbl, log_t *log) {
     //     ptbl->head = curr;
     // }
 
+    if (ptbl->running && ptbl->running == curr && ptbl->running->quantum == 0) {
+        ptbl->running->quantum = QUANTUM;
+    } 
+
     if (ptbl->running != curr) {
         ptable_set_running_process(ptbl, curr, log);
     }
@@ -346,7 +350,7 @@ void ptable_priority_mode(ptable_t *ptbl, log_t *log) {
         return;
     }
 
-    if (curr && curr->quantum <= 0) {
+    if (curr && curr->quantum == 0) {
         log->number_preemptions++;
         log->number_preemptions_process[curr->pid - 1]++;
 
