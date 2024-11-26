@@ -83,7 +83,7 @@ void ptable_check_waiting(ptable_t *ptbl);
 
 void ptable_move_to_end(ptable_t *ptbl);
 
-void ptable_standard_mode(ptable_t *ptbl, log_t *log);
+void ptable_standard_mode(ptable_t *ptbl, log_t *log, bool mode);
 void ptable_preemptive_mode(ptable_t *ptbl, log_t *log);
 void ptable_priority_mode(ptable_t *ptbl, log_t *log);
 void ptable_sort_by_priority(ptable_t *ptbl);

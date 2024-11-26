@@ -236,21 +236,21 @@ void ptable_check_waiting(ptable_t *ptbl) {
     }
 }
 
-void ptable_standard_mode(ptable_t *ptbl, log_t *log) {
+void ptable_standard_mode(ptable_t *ptbl, log_t *log, bool mode) {
 
-    // process_t *prev = NULL;
+    process_t *prev = NULL;
     process_t *curr = ptbl->head;
 
     while (curr && curr->st != ready) {
-        // prev = curr;
+        prev = curr;
         curr = curr->next;
     }
 
-    // if (prev && curr) {
-    //     prev->next = curr->next;
-    //     curr->next = ptbl->head;
-    //     ptbl->head = curr;
-    // }
+    if (prev && curr && !mode) {
+         prev->next = curr->next;
+         curr->next = ptbl->head;
+         ptbl->head = curr;
+    }
 
     if (ptbl->running && ptbl->running == curr && ptbl->running->quantum == 0) {
         ptbl->running->quantum = QUANTUM;

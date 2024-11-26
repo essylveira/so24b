@@ -186,7 +186,7 @@ static void so_escalona(so_t *self) {
 
     ptable_priority_mode(self->ptbl, self->log);
 
-    ptable_standard_mode(self->ptbl, self->log);
+    ptable_standard_mode(self->ptbl, self->log, true);
 
 }
 
