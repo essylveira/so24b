@@ -3,8 +3,8 @@
 ; faz chamadas de sistema para E/S
 
 ; usa bastante CPU e pouca E/S
-N        define 50  ; até quanto vai contar
-CADA     define 1   ; a cada tantos, imprime o valor atual
+N        define 1000  ; até quanto vai contar
+CADA     define 250   ; a cada tantos, imprime o valor atual
 
          desv main
 prog     string 'p1  (bastante CPU pouca E/S)                                       '

@@ -3,8 +3,8 @@
 ; faz chamadas de sistema para E/S
 
 ; uso intermediário entre CPU e E/S
-N        define 50 ; até quanto vai contar
-CADA     define 1   ; a cada tantos, imprime o valor atual
+N        define 50  ; até quanto vai contar
+CADA     define 10  ; a cada tantos, imprime o valor atual
 
          desv main
 prog     string 'p2  (media CPU, media E/S)                                         '

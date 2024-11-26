@@ -6,7 +6,7 @@
 #include "memoria.h"
 #include <stdio.h>
 
-#define QUANTUM 10 
+#define QUANTUM 5 
 
 typedef enum pendency { none, read, write } pendency_t;
 
