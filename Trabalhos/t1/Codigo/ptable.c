@@ -1,5 +1,6 @@
 #include "ptable.h"
 #include "irq.h"
+#include "console.h"
 
 #include <assert.h>
 #include <stdbool.h>
@@ -86,7 +87,8 @@ pstate process_state(process_t *proc) { return proc->st; }
 void process_set_state(process_t *proc, pstate st, log_t *log) {
     proc->st = st;
     if (st == blocked) {
-        proc->prio += (proc->t_exec / QUANTUM) / 2;
+        // prio = (prio + t_exec/t_quantum) / 2
+        proc->prio = (proc->prio + proc->t_exec / QUANTUM) / 2;
     }
     log->number_states_process[proc->pid - 1][st]++;
 }
@@ -344,12 +346,20 @@ void ptable_priority_mode(ptable_t *ptbl, log_t *log) {
         return;
     }
 
-    if (curr && curr->quantum == 0) {
+    if (curr && curr->quantum <= 0) {
         log->number_preemptions++;
         log->number_preemptions_process[curr->pid - 1]++;
 
-        curr->prio += (curr->t_exec / QUANTUM) / 2.0;
+        // prio = (prio + t_exec/t_quantum) / 2
+        curr->prio = (curr->prio + curr->t_exec / QUANTUM) / 2.0;
     }
 
     ptable_sort_by_priority(ptbl);
+
+    curr = ptbl->head;
+    while (curr) {
+        console_printf("pid: %d, prio: %f, quantum: %d", curr->pid, curr->prio, curr->quantum);
+        curr = curr->next;
+    }
+    console_printf("----------------");
 }

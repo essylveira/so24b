@@ -188,14 +188,6 @@ static void so_escalona(so_t *self) {
 
     ptable_standard_mode(self->ptbl, self->log);
 
-    process_t *curr = ptable_head(self->ptbl);
-
-    while (curr) {
-        console_printf("pid: %d, prio: %f", process_pid(curr), process_prio(curr));
-        curr = process_next(curr);
-    }
-
-    console_printf("----------------");
 }
 
 static int so_despacha(so_t *self) {
