@@ -285,6 +285,13 @@ void ptable_preemptive_mode(ptable_t *ptbl) {
 
         ptable_move_to_end(ptbl);
     }
+
+    curr = ptbl->head;
+    while (curr) {
+        console_printf("pid: %d, quantum: %d, state: %d", curr->pid, curr->quantum, curr->st);
+        curr = curr->next;
+    }
+    console_printf("----------------");
 }
 
 static process_t *ptable_minimum_prio(ptable_t *ptbl) {
@@ -351,12 +358,12 @@ void ptable_priority_mode(ptable_t *ptbl) {
 
     ptable_sort_by_priority(ptbl);
 
-    // curr = ptbl->head;
-    // while (curr) {
-    //     console_printf("pid: %d, prio: %f, quantum: %d", curr->pid, curr->prio, curr->quantum);
-    //     curr = curr->next;
-    // }
-    // console_printf("----------------");
+    curr = ptbl->head;
+    while (curr) {
+        console_printf("pid: %d, prio: %f, quantum: %d, state: %d", curr->pid, curr->prio, curr->quantum, curr->st);
+        curr = curr->next;
+    }
+    console_printf("----------------");
 }
 
 bool ptable_idle(ptable_t *ptbl) {
