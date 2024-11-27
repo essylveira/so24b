@@ -23,15 +23,6 @@ struct ptable {
     process_t *head;
 };
 
-log_t *log_create() {
-
-    log_t *log = calloc(1, sizeof(ptable_t));
-
-    return log;
-}
-
-void log_free(log_t *log) { free(log); }
-
 process_t *process_create() {
     process_t *proc = calloc(1, sizeof(process_t));
 
@@ -84,13 +75,13 @@ void process_printf(process_t *proc) {
 
 pstate process_state(process_t *proc) { return proc->st; }
 
-void process_set_state(process_t *proc, pstate st, log_t *log) {
+void process_set_state(process_t *proc, pstate st) {
     proc->st = st;
     if (st == blocked) {
         // prio = (prio + t_exec/t_quantum) / 2
         proc->prio = (proc->prio + proc->t_exec / QUANTUM) / 2;
     }
-    log->number_states_process[proc->pid - 1][st]++;
+    logs.number_states_process[proc->pid - 1][st]++;
 }
 
 process_t *ptable_running_process(ptable_t *ptbl) { return ptbl->running; }
@@ -162,11 +153,11 @@ void ptable_printf(ptable_t *ptbl) {
     }
 }
 
-void ptable_set_running_process(ptable_t *ptbl, process_t *proc, log_t *log) {
+void ptable_set_running_process(ptable_t *ptbl, process_t *proc) {
     if (proc) {
         proc->quantum = QUANTUM;
         proc->t_exec = 0;
-        log->number_states_process[proc->pid - 1][running]++;
+        logs.number_states_process[proc->pid - 1][running]++;
     }
 
     ptbl->running = proc;
@@ -205,7 +196,7 @@ void ptable_remove_process(ptable_t *ptbl, process_t *proc) {
         prev->next = curr->next;
     } else {
         ptbl->head = curr->next;
-        ptable_set_running_process(ptbl, NULL, NULL);
+        ptable_set_running_process(ptbl, NULL);
     }
 
     proc->next = NULL;
@@ -236,7 +227,7 @@ void ptable_check_waiting(ptable_t *ptbl) {
     }
 }
 
-void ptable_standard_mode(ptable_t *ptbl, log_t *log, bool mode) {
+void ptable_standard_mode(ptable_t *ptbl, bool mode) {
 
     process_t *prev = NULL;
     process_t *curr = ptbl->head;
@@ -257,7 +248,7 @@ void ptable_standard_mode(ptable_t *ptbl, log_t *log, bool mode) {
     } 
 
     if (ptbl->running != curr) {
-        ptable_set_running_process(ptbl, curr, log);
+        ptable_set_running_process(ptbl, curr);
     }
 }
 
@@ -280,7 +271,7 @@ void ptable_move_to_end(ptable_t *ptbl) {
     curr->next = NULL;
 }
 
-void ptable_preemptive_mode(ptable_t *ptbl, log_t *log) {
+void ptable_preemptive_mode(ptable_t *ptbl) {
 
     process_t *curr = ptbl->running;
 
@@ -289,8 +280,8 @@ void ptable_preemptive_mode(ptable_t *ptbl, log_t *log) {
     }
 
     if (curr && curr->quantum == 0) {
-        log->number_preemptions++;
-        log->number_preemptions_process[curr->pid - 1]++;
+        logs.number_preemptions++;
+        logs.number_preemptions_process[curr->pid - 1]++;
 
         ptable_move_to_end(ptbl);
     }
@@ -342,7 +333,7 @@ void ptable_sort_by_priority(ptable_t *ptbl) {
     ptbl->head = head;
 }
 
-void ptable_priority_mode(ptable_t *ptbl, log_t *log) {
+void ptable_priority_mode(ptable_t *ptbl) {
 
     process_t *curr = ptbl->running;
 
@@ -351,8 +342,8 @@ void ptable_priority_mode(ptable_t *ptbl, log_t *log) {
     }
 
     if (curr && curr->quantum == 0) {
-        log->number_preemptions++;
-        log->number_preemptions_process[curr->pid - 1]++;
+        logs.number_preemptions++;
+        logs.number_preemptions_process[curr->pid - 1]++;
 
         // prio = (prio + t_exec/t_quantum) / 2
         curr->prio = (curr->prio + curr->t_exec / QUANTUM) / 2.0;

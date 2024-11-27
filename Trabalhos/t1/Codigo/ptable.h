@@ -8,6 +8,7 @@
 
 #define QUANTUM 5 
 
+
 typedef enum pendency { none, read, write } pendency_t;
 
 typedef enum pstate { blocked, ready, running } pstate;
@@ -36,8 +37,7 @@ struct log {
     int mean_time[3]; // p1, p2, p3
 };
 
-log_t *log_create();
-void log_free(log_t *log);
+extern log_t logs;
 
 process_t *process_create();
 void process_free(process_t *proc);
@@ -47,7 +47,7 @@ void process_load_registers(process_t *proc, mem_t *mem);
 
 void process_printf(process_t *proc);
 pstate process_state(process_t *proc);
-void process_set_state(process_t *proc, pstate st, log_t *log);
+void process_set_state(process_t *proc, pstate st);
 
 process_t *ptable_running_process(ptable_t *ptbl);
 process_t *ptable_head(ptable_t *ptbl);
@@ -73,7 +73,7 @@ void ptable_free(ptable_t *ptbl);
 void ptable_printf(ptable_t *ptbl);
 void ptable_fprintf(ptable_t *ptbl, FILE *fp);
 
-void ptable_set_running_process(ptable_t *ptbl, process_t *proc, log_t *log);
+void ptable_set_running_process(ptable_t *ptbl, process_t *proc);
 
 void ptable_insert_process(ptable_t *ptbl, process_t *proc);
 void ptable_remove_process(ptable_t *ptbl, process_t *proc);
@@ -83,9 +83,9 @@ void ptable_check_waiting(ptable_t *ptbl);
 
 void ptable_move_to_end(ptable_t *ptbl);
 
-void ptable_standard_mode(ptable_t *ptbl, log_t *log, bool mode);
-void ptable_preemptive_mode(ptable_t *ptbl, log_t *log);
-void ptable_priority_mode(ptable_t *ptbl, log_t *log);
+void ptable_standard_mode(ptable_t *ptbl, bool mode);
+void ptable_preemptive_mode(ptable_t *ptbl);
+void ptable_priority_mode(ptable_t *ptbl);
 void ptable_sort_by_priority(ptable_t *ptbl);
 
 #endif // PTABLE_H
