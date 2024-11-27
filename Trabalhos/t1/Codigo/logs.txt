@@ -1,0 +1,48 @@
+No de processos criados: 3
+Tempo total de execução: 19049
+Tempo ocioso: 28
+No de SO_LE: 0
+No de SO_ESCR: 443
+No de SO_CRIA_PROC: 3
+No de SO_MATA_PROC: 4
+No de SO_ESPERA_PROC: 3
+No de preempções: 19
+
+Tempo de retorno PID 1: 17979
+Tempo de retorno PID 2: 5093
+Tempo de retorno PID 3: 17343
+
+No de preempções PID 1: 6
+No de preempções PID 2: 6
+No de preempções PID 3: 5
+
+No de vezes que PID 1 entrou no estado
+	blocked: 12
+	ready: 13
+	running: 132
+No de vezes que PID 2 entrou no estado
+	blocked: 9
+	ready: 10
+	running: 14
+No de vezes que PID 3 entrou no estado
+	blocked: 133
+	ready: 134
+	running: 138
+
+O tempo que PID 1 ficou no estado
+	blocked: 14
+	ready: 434
+	running: 315
+O tempo que PID 2 ficou no estado
+	blocked: 22
+	ready: 182
+	running: 130
+O tempo que PID 3 ficou no estado
+	blocked: 121
+	ready: 280
+	running: 297
+
+Tempo médio de resposta do PID 1: 33,384617
+Tempo médio de resposta do PID 2: 18,200001
+Tempo médio de resposta do PID 3: 2,089552
+

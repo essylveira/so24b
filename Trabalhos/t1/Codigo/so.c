@@ -179,6 +179,10 @@ static void so_trata_pendencias(so_t *self) {
 
         curr = process_next(curr);
     }
+
+    // Contabilidade
+    logs.time_blocked += ptable_idle(self->ptbl) ? 1 : 0; 
+    ptable_update_times(self->ptbl); 
 }
 
 static void so_escalona(so_t *self) {
@@ -273,8 +277,57 @@ static void so_trata_irq_relogio(so_t *self) {
 
     if (ptable_head(self->ptbl) == NULL && !self->finished) {
         self->finished = true;
+
+        FILE *fp = fopen("logs.txt", "w");
+
+        fprintf(fp, "No de processos criados: %d\n", logs.process_created);
+
         es_le(self->es, D_RELOGIO_INSTRUCOES, &logs.total_time);
-        console_printf("%d %d %d", logs.process_created, logs.number_preemptions, logs.total_time);
+        fprintf(fp, "Tempo total de execução: %d\n", logs.total_time);
+
+        fprintf(fp, "Tempo ocioso: %d\n", logs.time_blocked);
+
+        fprintf(fp, "No de SO_LE: %d\n", logs.number_interruptions[0]);
+        fprintf(fp, "No de SO_ESCR: %d\n", logs.number_interruptions[1]);
+        fprintf(fp, "No de SO_CRIA_PROC: %d\n", logs.number_interruptions[2]);
+        fprintf(fp, "No de SO_MATA_PROC: %d\n", logs.number_interruptions[3]);
+        fprintf(fp, "No de SO_ESPERA_PROC: %d\n", logs.number_interruptions[4]);
+
+        fprintf(fp, "No de preempções: %d\n", logs.number_preemptions);
+        fprintf(fp, "\n");
+
+        for (int i = 1; i < logs.process_created + 1; i++) {
+            fprintf(fp, "Tempo de retorno PID %d: %d\n", i, logs.process_killed_at[i] - logs.process_created_at[i]);
+        }
+        fprintf(fp, "\n");
+
+        for (int i = 1; i < logs.process_created + 1; i++) {
+            fprintf(fp, "No de preempções PID %d: %d\n", i, logs.number_preemptions_process[i]);
+        }
+        fprintf(fp, "\n");
+
+        for (int i = 1; i < logs.process_created + 1; i++) {
+            fprintf(fp, "No de vezes que PID %d entrou no estado\n", i);
+            fprintf(fp, "\tblocked: %d\n", logs.number_states_process[i][0]);
+            fprintf(fp, "\tready: %d\n", logs.number_states_process[i][1]);
+            fprintf(fp, "\trunning: %d\n", logs.number_states_process[i][2]);
+        }
+        fprintf(fp, "\n");
+
+        for (int i = 1; i < logs.process_created + 1; i++) {
+            fprintf(fp, "O tempo que PID %d ficou no estado\n", i);
+            fprintf(fp, "\tblocked: %d\n", logs.process_state_time[i][0]);
+            fprintf(fp, "\tready: %d\n", logs.process_state_time[i][1]);
+            fprintf(fp, "\trunning: %d\n", logs.process_state_time[i][2]);
+        }
+        fprintf(fp, "\n");
+
+        for (int i = 1; i < logs.process_created + 1; i++) {
+            fprintf(fp, "Tempo médio de resposta do PID %d: %f\n", i, logs.process_state_time[i][1] / (float)logs.number_states_process[i][1]);
+        }
+        fprintf(fp, "\n");
+
+        fclose(fp);
     }
 
 }
@@ -412,6 +465,9 @@ static void so_chamada_cria_proc(so_t *self) {
     ptable_insert_process(self->ptbl, created);
 
     process_set_A(running, process_pid(created));
+
+    // Contabilidade
+    es_le(self->es, D_RELOGIO_INSTRUCOES, &logs.process_created_at[process_pid(created)]);
 }
 
 static void so_chamada_mata_proc(so_t *self) {
@@ -430,8 +486,13 @@ static void so_chamada_mata_proc(so_t *self) {
             ptable_set_running_process(self->ptbl, NULL);
         }
 
+        // Por quê?
         process_set_state(found, ready);
+
     }
+
+    // Contabilidade
+    es_le(self->es, D_RELOGIO_INSTRUCOES, &logs.process_killed_at[process_pid(found)]);
 }
 
 static void so_chamada_espera_proc(so_t *self) {

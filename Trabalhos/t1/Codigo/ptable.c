@@ -81,7 +81,7 @@ void process_set_state(process_t *proc, pstate st) {
         // prio = (prio + t_exec/t_quantum) / 2
         proc->prio = (proc->prio + proc->t_exec / QUANTUM) / 2;
     }
-    logs.number_states_process[proc->pid - 1][st]++;
+    logs.number_states_process[proc->pid][st]++;
 }
 
 process_t *ptable_running_process(ptable_t *ptbl) { return ptbl->running; }
@@ -157,7 +157,7 @@ void ptable_set_running_process(ptable_t *ptbl, process_t *proc) {
     if (proc) {
         proc->quantum = QUANTUM;
         proc->t_exec = 0;
-        logs.number_states_process[proc->pid - 1][running]++;
+        logs.number_states_process[proc->pid][running]++;
     }
 
     ptbl->running = proc;
@@ -281,7 +281,7 @@ void ptable_preemptive_mode(ptable_t *ptbl) {
 
     if (curr && curr->quantum == 0) {
         logs.number_preemptions++;
-        logs.number_preemptions_process[curr->pid - 1]++;
+        logs.number_preemptions_process[curr->pid]++;
 
         ptable_move_to_end(ptbl);
     }
@@ -343,7 +343,7 @@ void ptable_priority_mode(ptable_t *ptbl) {
 
     if (curr && curr->quantum == 0) {
         logs.number_preemptions++;
-        logs.number_preemptions_process[curr->pid - 1]++;
+        logs.number_preemptions_process[curr->pid]++;
 
         // prio = (prio + t_exec/t_quantum) / 2
         curr->prio = (curr->prio + curr->t_exec / QUANTUM) / 2.0;
@@ -351,10 +351,38 @@ void ptable_priority_mode(ptable_t *ptbl) {
 
     ptable_sort_by_priority(ptbl);
 
-    curr = ptbl->head;
+    // curr = ptbl->head;
+    // while (curr) {
+    //     console_printf("pid: %d, prio: %f, quantum: %d", curr->pid, curr->prio, curr->quantum);
+    //     curr = curr->next;
+    // }
+    // console_printf("----------------");
+}
+
+bool ptable_idle(ptable_t *ptbl) {
+
+    process_t *curr = ptbl->head;
+
     while (curr) {
-        console_printf("pid: %d, prio: %f, quantum: %d", curr->pid, curr->prio, curr->quantum);
+        if (curr->st != blocked) {
+            return false;
+        }
         curr = curr->next;
     }
-    console_printf("----------------");
+
+    return true;
+}
+
+void ptable_update_times(ptable_t *ptbl) {
+    
+    process_t *curr = ptbl->head;
+
+    while (curr) {
+        if (curr == ptbl->running) {
+            logs.process_state_time[curr->pid][2]++;
+        } else {
+            logs.process_state_time[curr->pid][curr->st]++;
+        }
+        curr = curr->next;
+    }
 }

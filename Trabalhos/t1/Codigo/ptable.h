@@ -6,8 +6,7 @@
 #include "memoria.h"
 #include <stdio.h>
 
-#define QUANTUM 5 
-
+#define QUANTUM 5
 
 typedef enum pendency { none, read, write } pendency_t;
 
@@ -26,15 +25,18 @@ struct log {
                                  // so_espera_proc
     int number_preemptions;
 
-    int process_time[3]; // p1, p2, p3
+    int process_created_at[4];
+    int process_killed_at[4];
 
-    int number_preemptions_process[3]; // p1, p2, p3
+    int process_time[4]; // init, p1, p2, p3
 
-    int number_states_process[3][3]; // p1, p2, p3 x ready, blocked, running
+    int number_preemptions_process[4]; // p1, p2, p3
 
-    int process_state_time[3][3]; // p1, p2, p3 x ready, blocked, running
+    int number_states_process[4][3]; // p1, p2, p3 x ready, blocked, running
 
-    int mean_time[3]; // p1, p2, p3
+    int process_state_time[4][3]; // p1, p2, p3 x ready, blocked, running
+
+    int mean_time[4]; // init, p1, p2, p3
 };
 
 extern log_t logs;
@@ -87,5 +89,7 @@ void ptable_standard_mode(ptable_t *ptbl, bool mode);
 void ptable_preemptive_mode(ptable_t *ptbl);
 void ptable_priority_mode(ptable_t *ptbl);
 void ptable_sort_by_priority(ptable_t *ptbl);
+bool ptable_idle(ptable_t *ptbl);
+void ptable_update_times(ptable_t *ptbl);
 
 #endif // PTABLE_H
