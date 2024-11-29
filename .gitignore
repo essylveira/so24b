@@ -3,3 +3,4 @@ tags
 *.d
 log_da_console
 .cache
+.clang-format
