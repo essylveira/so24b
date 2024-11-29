@@ -1,6 +1,6 @@
 #include "ptable.h"
-#include "irq.h"
 #include "console.h"
+#include "irq.h"
 
 #include <assert.h>
 #include <stdbool.h>
@@ -38,7 +38,9 @@ process_t *process_create() {
     return proc;
 }
 
-void process_free(process_t *proc) { free(proc); }
+void process_free(process_t *proc) {
+    free(proc);
+}
 
 void process_save_registers(process_t *proc, mem_t *mem) {
     mem_le(mem, IRQ_END_PC, &proc->PC);
@@ -67,13 +69,19 @@ void process_printf(process_t *proc) {
 
     printf("PID: %u\n", proc->pid);
     printf("PC: %d\nA: %d\nX: %d\nerro: %d\ncomplemento: %d\nmodo: %d\n",
-           proc->PC, proc->A, proc->X, proc->erro, proc->complemento,
+           proc->PC,
+           proc->A,
+           proc->X,
+           proc->erro,
+           proc->complemento,
            proc->modo);
     printf("%s\n", proc->st ? "ready" : "blocked");
     printf("%p\n", proc->next);
 }
 
-pstate process_state(process_t *proc) { return proc->st; }
+pstate process_state(process_t *proc) {
+    return proc->st;
+}
 
 void process_set_state(process_t *proc, pstate st) {
     proc->st = st;
@@ -84,25 +92,45 @@ void process_set_state(process_t *proc, pstate st) {
     logs.number_states_process[proc->pid][st]++;
 }
 
-process_t *ptable_running_process(ptable_t *ptbl) { return ptbl->running; }
+process_t *ptable_running_process(ptable_t *ptbl) {
+    return ptbl->running;
+}
 
-process_t *ptable_head(ptable_t *ptbl) { return ptbl->head; }
+process_t *ptable_head(ptable_t *ptbl) {
+    return ptbl->head;
+}
 
-int process_pid(process_t *proc) { return proc->pid; }
+int process_pid(process_t *proc) {
+    return proc->pid;
+}
 
-int process_PC(process_t *proc) { return proc->PC; }
+int process_PC(process_t *proc) {
+    return proc->PC;
+}
 
-int process_X(process_t *proc) { return proc->X; }
+int process_X(process_t *proc) {
+    return proc->X;
+}
 
-int process_A(process_t *proc) { return proc->A; }
+int process_A(process_t *proc) {
+    return proc->A;
+}
 
-process_t *process_next(process_t *proc) { return proc->next; }
+process_t *process_next(process_t *proc) {
+    return proc->next;
+}
 
-pendency_t process_pendency(process_t *proc) { return proc->pendency; }
+pendency_t process_pendency(process_t *proc) {
+    return proc->pendency;
+}
 
-void process_set_PC(process_t *proc, int PC) { proc->PC = PC; }
+void process_set_PC(process_t *proc, int PC) {
+    proc->PC = PC;
+}
 
-void process_set_A(process_t *proc, int A) { proc->A = A; }
+void process_set_A(process_t *proc, int A) {
+    proc->A = A;
+}
 
 void process_set_pendency(process_t *proc, pendency_t pendency) {
     proc->pendency = pendency;
@@ -113,7 +141,9 @@ void process_dec_quantum(process_t *proc) {
     proc->t_exec++;
 }
 
-float process_prio(process_t *proc) { return proc->prio; }
+float process_prio(process_t *proc) {
+    return proc->prio;
+}
 
 ptable_t *ptable_create() {
 
@@ -142,7 +172,9 @@ void ptable_printf(ptable_t *ptbl) {
     printf("running: %p\n", ptable_running_process(ptbl));
 
     while (curr) {
-        printf("%d %p %s", process_pid(curr), curr,
+        printf("%d %p %s",
+               process_pid(curr),
+               curr,
                curr->st ? "ready" : "blocked");
         if (curr->pendency == read) {
             printf(" read\n");
@@ -238,14 +270,14 @@ void ptable_standard_mode(ptable_t *ptbl, bool mode) {
     }
 
     if (prev && curr && !mode) {
-         prev->next = curr->next;
-         curr->next = ptbl->head;
-         ptbl->head = curr;
+        prev->next = curr->next;
+        curr->next = ptbl->head;
+        ptbl->head = curr;
     }
 
     if (ptbl->running && ptbl->running == curr && ptbl->running->quantum == 0) {
         ptbl->running->quantum = QUANTUM;
-    } 
+    }
 
     if (ptbl->running != curr) {
         ptable_set_running_process(ptbl, curr);
@@ -288,7 +320,10 @@ void ptable_preemptive_mode(ptable_t *ptbl) {
 
     curr = ptbl->head;
     while (curr) {
-        console_printf("pid: %d, quantum: %d, state: %d", curr->pid, curr->quantum, curr->st);
+        console_printf("pid: %d, quantum: %d, state: %d",
+                       curr->pid,
+                       curr->quantum,
+                       curr->st);
         curr = curr->next;
     }
     console_printf("----------------");
@@ -360,7 +395,11 @@ void ptable_priority_mode(ptable_t *ptbl) {
 
     curr = ptbl->head;
     while (curr) {
-        console_printf("pid: %d, prio: %f, quantum: %d, state: %d", curr->pid, curr->prio, curr->quantum, curr->st);
+        console_printf("pid: %d, prio: %f, quantum: %d, state: %d",
+                       curr->pid,
+                       curr->prio,
+                       curr->quantum,
+                       curr->st);
         curr = curr->next;
     }
     console_printf("----------------");
@@ -381,7 +420,7 @@ bool ptable_idle(ptable_t *ptbl) {
 }
 
 void ptable_update_times(ptable_t *ptbl) {
-    
+
     process_t *curr = ptbl->head;
 
     while (curr) {

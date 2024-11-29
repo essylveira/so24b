@@ -1,6 +1,6 @@
 #include "ulist.h"
-#include <stdlib.h>
 #include <stdio.h>
+#include <stdlib.h>
 
 waiting_t *waiting_alloc(process_t *waiting, process_t *to_be_waited) {
     waiting_t *wt = calloc(1, sizeof(waiting_t));

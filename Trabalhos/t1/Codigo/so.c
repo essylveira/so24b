@@ -181,18 +181,17 @@ static void so_trata_pendencias(so_t *self) {
     }
 
     // Contabilidade
-    logs.time_blocked += ptable_idle(self->ptbl) ? 1 : 0; 
-    ptable_update_times(self->ptbl); 
+    logs.time_blocked += ptable_idle(self->ptbl) ? 1 : 0;
+    ptable_update_times(self->ptbl);
 }
 
 static void so_escalona(so_t *self) {
 
-    //ptable_preemptive_mode(self->ptbl);
+    // ptable_preemptive_mode(self->ptbl);
 
     ptable_priority_mode(self->ptbl);
 
     ptable_standard_mode(self->ptbl, true);
-
 }
 
 static int so_despacha(so_t *self) {
@@ -297,12 +296,18 @@ static void so_trata_irq_relogio(so_t *self) {
         fprintf(fp, "\n");
 
         for (int i = 1; i < logs.process_created + 1; i++) {
-            fprintf(fp, "Tempo de retorno PID %d: %d\n", i, logs.process_killed_at[i] - logs.process_created_at[i]);
+            fprintf(fp,
+                    "Tempo de retorno PID %d: %d\n",
+                    i,
+                    logs.process_killed_at[i] - logs.process_created_at[i]);
         }
         fprintf(fp, "\n");
 
         for (int i = 1; i < logs.process_created + 1; i++) {
-            fprintf(fp, "No de preempções PID %d: %d\n", i, logs.number_preemptions_process[i]);
+            fprintf(fp,
+                    "No de preempções PID %d: %d\n",
+                    i,
+                    logs.number_preemptions_process[i]);
         }
         fprintf(fp, "\n");
 
@@ -323,13 +328,16 @@ static void so_trata_irq_relogio(so_t *self) {
         fprintf(fp, "\n");
 
         for (int i = 1; i < logs.process_created + 1; i++) {
-            fprintf(fp, "Tempo médio de resposta do PID %d: %f\n", i, logs.process_state_time[i][1] / (float)logs.number_states_process[i][1]);
+            fprintf(fp,
+                    "Tempo médio de resposta do PID %d: %f\n",
+                    i,
+                    logs.process_state_time[i][1] /
+                        (float)logs.number_states_process[i][1]);
         }
         fprintf(fp, "\n");
 
         fclose(fp);
     }
-
 }
 
 static void so_trata_irq_desconhecida(so_t *self, int irq) {
@@ -467,7 +475,9 @@ static void so_chamada_cria_proc(so_t *self) {
     process_set_A(running, process_pid(created));
 
     // Contabilidade
-    es_le(self->es, D_RELOGIO_INSTRUCOES, &logs.process_created_at[process_pid(created)]);
+    es_le(self->es,
+          D_RELOGIO_INSTRUCOES,
+          &logs.process_created_at[process_pid(created)]);
 }
 
 static void so_chamada_mata_proc(so_t *self) {
@@ -488,11 +498,12 @@ static void so_chamada_mata_proc(so_t *self) {
 
         // Por quê?
         process_set_state(found, ready);
-
     }
 
     // Contabilidade
-    es_le(self->es, D_RELOGIO_INSTRUCOES, &logs.process_killed_at[process_pid(found)]);
+    es_le(self->es,
+          D_RELOGIO_INSTRUCOES,
+          &logs.process_killed_at[process_pid(found)]);
 }
 
 static void so_chamada_espera_proc(so_t *self) {
