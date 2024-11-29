@@ -46,15 +46,15 @@ Ver [aqui](https://www.ufsm.br/ementario/disciplinas/ELC1080/).
 |      |  1out  | [vade retro vīrus](https://www.ufsm.br/2024/09/30/nota-atividades-administrativas-e-academicas-presenciais-suspensas-ate-01-de-outubro)
 |    7 |  3out  | mais detalhes do t1; escalonamento
 |    8 |  8out  | algoritmos de escalonamento
-|    9 | 10out  | 
-|   10 | 15out  | 
-|   11 | 17out  | 
-|   12 | 22out  | 
-|   13 | 24out  | 
-|   14 | 29out  | 
-|   15 | 31out  | 
-|   16 |  5nov  | 
-|   17 |  7nov  | 
+|    9 | 10out  | *threads*
+|   10 | 15out  | [programa para teste de threads](Testes/thr.c), comunicação entre processos
+|   11 | 17out  | comunicação entre processos (TSL, semáforo, mutex, monitor, variável de condição; produtor-consumidor)
+|   12 | 22out  | comunicação entre processos (barreira; jantar dos filósofos, leitores+escritores)
+|   13 | 24out  | gerenciamento de memória
+|   14 | 29out  | gerenciamento de memória (memória virtual, segmentação, paginação)
+|   15 | 31out  | gerenciamento de memória (TLB, tabela de páginas invertida)
+|   16 |  5nov  | gerenciamento de memória
+|   17 |  7nov  | apresentação do t2
 |   18 | 12nov  | 
 |   19 | 14nov  | 
 |   20 | 19nov  | 
@@ -109,6 +109,7 @@ Ver [aqui](https://www.ufsm.br/ementario/disciplinas/ELC1080/).
 |    id | prazo | assunto
 | ----: | :---- | :-----------
 | t0    | 24set | [simulador de computador](/Trabalhos/t0) \| entrega = dispositivo rand, programa de adivinhar; forma de entrega: mail com arquivos ou link para git (faz um branch)
-| t1    |       | [implementação de processos](/Trabalhos/t1)
+| t1    | 18nov | [implementação de processos](/Trabalhos/t1)
+| t2    |       | [gerenciamento de memória](/Trabalhos/t2)
 
 
