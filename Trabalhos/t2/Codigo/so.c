@@ -8,6 +8,8 @@
 #include "dispositivos.h"
 #include "irq.h"
 #include "programa.h"
+#include "ptable.h"
+#include "ulist.h"
 #include "tabpag.h"
 
 #include <stdlib.h>
@@ -46,7 +48,12 @@ struct so_t {
   es_t *es;
   console_t *console;
   bool erro_interno;
+
   // t1: tabela de processos, processo corrente, pendências, etc
+  ptable_t *ptbl;
+  wlist_t *wlst;
+  log_t *log;
+  bool finished;
 
   // primeiro quadro da memória que está livre (quadros anteriores estão ocupados)
   // t2: com memória virtual, o controle de memória livre e ocupada é mais
@@ -74,9 +81,7 @@ static bool so_copia_str_do_processo(so_t *self, int tam, char str[tam],
 // CRIAÇÃO {{{1
 
 
-so_t *so_cria(cpu_t *cpu, mem_t *mem, mmu_t *mmu,
-              es_t *es, console_t *console)
-{
+so_t *so_cria(cpu_t *cpu, mem_t *mem, mmu_t *mmu, es_t *es, console_t *console) {
   so_t *self = malloc(sizeof(*self));
   assert(self != NULL);
 
@@ -111,6 +116,12 @@ so_t *so_cria(cpu_t *cpu, mem_t *mem, mmu_t *mmu,
     self->erro_interno = true;
   }
 
+  // t1
+  self->ptbl = ptable_create();
+  self->wlst = wlist_alloc();
+
+  self->finished = false;
+
   // inicializa a tabela de páginas global, e entrega ela para a MMU
   // t2: com processos, essa tabela não existiria, teria uma por processo, que
   //     deve ser colocada na MMU quando o processo é despachado para execução
@@ -124,12 +135,11 @@ so_t *so_cria(cpu_t *cpu, mem_t *mem, mmu_t *mmu,
   return self;
 }
 
-void so_destroi(so_t *self)
-{
+void so_destroi(so_t *self) {
   cpu_define_chamaC(self->cpu, NULL, NULL);
+  ptable_free(self->ptbl);
   free(self);
 }
-
 
 // TRATAMENTO DE INTERRUPÇÃO {{{1
 
@@ -154,56 +164,127 @@ static int so_despacha(so_t *self);
 //   assembly esse valor é usado para decidir se a CPU deve retornar da interrupção
 //   (e executar o código de usuário) ou executar PARA e ficar suspensa até receber
 //   outra interrupção
-static int so_trata_interrupcao(void *argC, int reg_A)
-{
+static int so_trata_interrupcao(void *argC, int reg_A) {
   so_t *self = argC;
   irq_t irq = reg_A;
-  // esse print polui bastante, recomendo tirar quando estiver com mais confiança
-  console_printf("SO: recebi IRQ %d (%s)", irq, irq_nome(irq));
-  // salva o estado da cpu no descritor do processo que foi interrompido
+  
   so_salva_estado_da_cpu(self);
-  // faz o atendimento da interrupção
+  
   so_trata_irq(self, irq);
-  // faz o processamento independente da interrupção
+  
   so_trata_pendencias(self);
-  // escolhe o próximo processo a executar
+
   so_escalona(self);
-  // recupera o estado do processo escolhido
+  
   return so_despacha(self);
 }
 
-static void so_salva_estado_da_cpu(so_t *self)
-{
-  // t1: salva os registradores que compõem o estado da cpu no descritor do
-  //   processo corrente. os valores dos registradores foram colocados pela
-  //   CPU na memória, nos endereços IRQ_END_*
-  // se não houver processo corrente, não faz nada
+static void so_salva_estado_da_cpu(so_t *self) {
+  process_t *running = ptable_running_process(self->ptbl);
+
+    if (running) {
+        process_save_registers(running, self->mem);
+    }
 }
 
-static void so_trata_pendencias(so_t *self)
-{
-  // t1: realiza ações que não são diretamente ligadas com a interrupção que
-  //   está sendo atendida:
-  // - E/S pendente
-  // - desbloqueio de processos
-  // - contabilidades
+void so_resolve_read(so_t *self, process_t *proc) {
+
+    dispositivo_id_t check_disp = process_pid(proc) * 4 + D_TERM_A_TECLADO_OK;
+    dispositivo_id_t access_disp = process_pid(proc) * 4 + D_TERM_A_TECLADO;
+
+    int available;
+
+    if (es_le(self->es, check_disp, &available) != ERR_OK) {
+        self->erro_interno = true;
+        return;
+    }
+
+    if (!available) {
+        return;
+    }
+
+    int data;
+    if (es_le(self->es, access_disp, &data) != ERR_OK) {
+        self->erro_interno = true;
+        return;
+    }
+
+    process_set_A(proc, data);
+
+    process_set_pendency(proc, none);
+    process_set_state(proc, ready);
 }
 
-static void so_escalona(so_t *self)
-{
-  // escolhe o próximo processo a executar, que passa a ser o processo
-  //   corrente; pode continuar sendo o mesmo de antes ou não
-  // t1: na primeira versão, escolhe um processo caso o processo corrente não possa continuar
-  //   executando. depois, implementar escalonador melhor
+void so_resolve_write(so_t *self, process_t *proc) {
+
+    dispositivo_id_t check_disp = process_pid(proc) * 4 + D_TERM_A_TELA_OK;
+    dispositivo_id_t access_disp = process_pid(proc) * 4 + D_TERM_A_TELA;
+
+    int available;
+
+    if (es_le(self->es, check_disp, &available) != ERR_OK) {
+        self->erro_interno = true;
+        return;
+    }
+
+    if (!available) {
+        return;
+    }
+
+    int data = process_X(proc);
+
+    if (es_escreve(self->es, access_disp, data) != ERR_OK) {
+        self->erro_interno = true;
+        return;
+    }
+
+    process_set_A(proc, 0);
+
+    process_set_pendency(proc, none);
+    process_set_state(proc, ready);
 }
 
-static int so_despacha(so_t *self)
-{
-  // t1: se houver processo corrente, coloca o estado desse processo onde ele
-  //   será recuperado pela CPU (em IRQ_END_*) e retorna 0, senão retorna 1
-  // o valor retornado será o valor de retorno de CHAMAC
-  if (self->erro_interno) return 1;
-  else return 0;
+static void so_trata_pendencias(so_t *self) {
+
+  process_t *curr = ptable_head(self->ptbl);
+
+    while (curr) {
+
+        pendency_t pendency = process_pendency(curr);
+
+        if (pendency == read) {
+            so_resolve_read(self, curr);
+        } else if (pendency == write) {
+            so_resolve_write(self, curr);
+        }
+
+        curr = process_next(curr);
+    }
+
+    // Contabilidade
+    logs.time_blocked += ptable_idle(self->ptbl) ? 1 : 0;
+    ptable_update_times(self->ptbl);
+
+}
+
+static void so_escalona(so_t *self) {
+  // ptable_preemptive_mode(self->ptbl);
+
+  ptable_priority_mode(self->ptbl);
+
+  ptable_standard_mode(self->ptbl, true);
+}
+
+static int so_despacha(so_t *self){
+  process_t *running = ptable_running_process(self->ptbl);
+
+  if (self->erro_interno || !running) {
+    return 1;
+  }
+
+  process_load_registers(running, self->mem);
+
+  return 0;
 }
 
 // TRATAMENTO DE UMA IRQ {{{1
@@ -247,7 +328,7 @@ static void so_trata_irq_reset(so_t *self)
   //   para os seus registradores quando executar a instrução RETI
 
   // coloca o programa "init" na memória
-  // t2: deveria criar um processo, e programar a tabela de páginas dele
+  // t2: deveria criar um processo, e programar a tabela de páginas dele **********
   processo_t processo = 1; // deveria inicializar um processo...
   int ender = so_carrega_programa(self, processo, "init.maq");
   if (ender != 0) {
@@ -263,37 +344,95 @@ static void so_trata_irq_reset(so_t *self)
 }
 
 // interrupção gerada quando a CPU identifica um erro
-static void so_trata_irq_err_cpu(so_t *self)
-{
-  // Ocorreu um erro interno na CPU
-  // O erro está codificado em IRQ_END_erro
-  // Em geral, causa a morte do processo que causou o erro
-  // Ainda não temos processos, causa a parada da CPU
-  int err_int;
-  // t1: com suporte a processos, deveria pegar o valor do registrador erro
-  //   no descritor do processo corrente, e reagir de acordo com esse erro
-  //   (em geral, matando o processo)
-  mem_le(self->mem, IRQ_END_erro, &err_int);
-  err_t err = err_int;
-  console_printf("SO: IRQ não tratada -- erro na CPU: %s", err_nome(err));
-  self->erro_interno = true;
+static void so_trata_irq_err_cpu(so_t *self) {
+   int err_int;
+
+    mem_le(self->mem, IRQ_END_erro, &err_int);
+    err_t err = err_int;
+    console_printf("SO: IRQ não tratada -- erro na CPU: %s", err_nome(err));
+    self->erro_interno = true;
 }
 
-// interrupção gerada quando o timer expira
-static void so_trata_irq_relogio(so_t *self)
-{
-  // rearma o interruptor do relógio e reinicializa o timer para a próxima interrupção
-  err_t e1, e2;
-  e1 = es_escreve(self->es, D_RELOGIO_INTERRUPCAO, 0); // desliga o sinalizador de interrupção
-  e2 = es_escreve(self->es, D_RELOGIO_TIMER, INTERVALO_INTERRUPCAO);
-  if (e1 != ERR_OK || e2 != ERR_OK) {
-    console_printf("SO: problema da reinicialização do timer");
-    self->erro_interno = true;
-  }
-  // t1: deveria tratar a interrupção
-  //   por exemplo, decrementa o quantum do processo corrente, quando se tem
-  //   um escalonador com quantum
-  console_printf("SO: interrupção do relógio (não tratada)");
+static void so_trata_irq_relogio(so_t *self) {
+
+    err_t e1, e2;
+
+    e1 = es_escreve(self->es, D_RELOGIO_INTERRUPCAO, 0);
+    e2 = es_escreve(self->es, D_RELOGIO_TIMER, INTERVALO_INTERRUPCAO);
+
+    if (e1 != ERR_OK || e2 != ERR_OK) {
+        self->erro_interno = true;
+    }
+
+    process_t *running = ptable_running_process(self->ptbl);
+    if (running) {
+        process_dec_quantum(running);
+    }
+
+    if (ptable_head(self->ptbl) == NULL && !self->finished) {
+        self->finished = true;
+
+        FILE *fp = fopen("logs.txt", "w");
+
+        fprintf(fp, "No de processos criados: %d\n", logs.process_created);
+
+        es_le(self->es, D_RELOGIO_INSTRUCOES, &logs.total_time);
+        fprintf(fp, "Tempo total de execução: %d\n", logs.total_time);
+
+        fprintf(fp, "Tempo ocioso: %d\n", logs.time_blocked);
+
+        fprintf(fp, "No de SO_LE: %d\n", logs.number_interruptions[0]);
+        fprintf(fp, "No de SO_ESCR: %d\n", logs.number_interruptions[1]);
+        fprintf(fp, "No de SO_CRIA_PROC: %d\n", logs.number_interruptions[2]);
+        fprintf(fp, "No de SO_MATA_PROC: %d\n", logs.number_interruptions[3]);
+        fprintf(fp, "No de SO_ESPERA_PROC: %d\n", logs.number_interruptions[4]);
+
+        fprintf(fp, "No de preempções: %d\n", logs.number_preemptions);
+        fprintf(fp, "\n");
+
+        for (int i = 1; i < logs.process_created + 1; i++) {
+            fprintf(fp,
+                    "Tempo de retorno PID %d: %d\n",
+                    i,
+                    logs.process_killed_at[i] - logs.process_created_at[i]);
+        }
+        fprintf(fp, "\n");
+
+        for (int i = 1; i < logs.process_created + 1; i++) {
+            fprintf(fp,
+                    "No de preempções PID %d: %d\n",
+                    i,
+                    logs.number_preemptions_process[i]);
+        }
+        fprintf(fp, "\n");
+
+        for (int i = 1; i < logs.process_created + 1; i++) {
+            fprintf(fp, "No de vezes que PID %d entrou no estado\n", i);
+            fprintf(fp, "\tblocked: %d\n", logs.number_states_process[i][0]);
+            fprintf(fp, "\tready: %d\n", logs.number_states_process[i][1]);
+            fprintf(fp, "\trunning: %d\n", logs.number_states_process[i][2]);
+        }
+        fprintf(fp, "\n");
+
+        for (int i = 1; i < logs.process_created + 1; i++) {
+            fprintf(fp, "O tempo que PID %d ficou no estado\n", i);
+            fprintf(fp, "\tblocked: %d\n", logs.process_state_time[i][0]);
+            fprintf(fp, "\tready: %d\n", logs.process_state_time[i][1]);
+            fprintf(fp, "\trunning: %d\n", logs.process_state_time[i][2]);
+        }
+        fprintf(fp, "\n");
+
+        for (int i = 1; i < logs.process_created + 1; i++) {
+            fprintf(fp,
+                    "Tempo médio de resposta do PID %d: %f\n",
+                    i,
+                    logs.process_state_time[i][1] /
+                        (float)logs.number_states_process[i][1]);
+        }
+        fprintf(fp, "\n");
+
+        fclose(fp);
+    }
 }
 
 // foi gerada uma interrupção para a qual o SO não está preparado
@@ -312,115 +451,100 @@ static void so_chamada_cria_proc(so_t *self);
 static void so_chamada_mata_proc(so_t *self);
 static void so_chamada_espera_proc(so_t *self);
 
-static void so_trata_irq_chamada_sistema(so_t *self)
-{
-  // a identificação da chamada está no registrador A
-  // t1: com processos, o reg A tá no descritor do processo corrente
-  int id_chamada;
-  if (mem_le(self->mem, IRQ_END_A, &id_chamada) != ERR_OK) {
-    console_printf("SO: erro no acesso ao id da chamada de sistema");
-    self->erro_interno = true;
-    return;
-  }
-  console_printf("SO: chamada de sistema %d", id_chamada);
-  switch (id_chamada) {
+static void so_trata_irq_chamada_sistema(so_t *self) {
+
+    process_t *running = ptable_running_process(self->ptbl);
+
+    int id_chamada = process_A(running);
+
+    switch (id_chamada) {
     case SO_LE:
-      so_chamada_le(self);
-      break;
+        so_chamada_le(self);
+        logs.number_interruptions[0]++;
+        break;
     case SO_ESCR:
-      so_chamada_escr(self);
-      break;
+        so_chamada_escr(self);
+        logs.number_interruptions[1]++;
+        break;
     case SO_CRIA_PROC:
-      so_chamada_cria_proc(self);
-      break;
+        so_chamada_cria_proc(self);
+        logs.number_interruptions[2]++;
+        break;
     case SO_MATA_PROC:
-      so_chamada_mata_proc(self);
-      break;
+        so_chamada_mata_proc(self);
+        logs.number_interruptions[3]++;
+        break;
     case SO_ESPERA_PROC:
-      so_chamada_espera_proc(self);
-      break;
+        so_chamada_espera_proc(self);
+        logs.number_interruptions[4]++;
+        break;
     default:
-      console_printf("SO: chamada de sistema desconhecida (%d)", id_chamada);
-      // t1: deveria matar o processo
-      self->erro_interno = true;
-  }
+        console_printf("SO: chamada de sistema desconhecida (%d)", id_chamada);
+
+        ptable_remove_process(self->ptbl, running);
+        process_free(running);
+
+        self->erro_interno = true;
+    }
 }
 
 // implementação da chamada se sistema SO_LE
 // faz a leitura de um dado da entrada corrente do processo, coloca o dado no reg A
-static void so_chamada_le(so_t *self)
-{
-  // implementação com espera ocupada
-  //   T1: deveria realizar a leitura somente se a entrada estiver disponível,
-  //     senão, deveria bloquear o processo.
-  //   no caso de bloqueio do processo, a leitura (e desbloqueio) deverá
-  //     ser feita mais tarde, em tratamentos pendentes em outra interrupção,
-  //     ou diretamente em uma interrupção específica do dispositivo, se for
-  //     o caso
-  // implementação lendo direto do terminal A
-  //   T1: deveria usar dispositivo de entrada corrente do processo
-  for (;;) {
-    int estado;
-    if (es_le(self->es, D_TERM_A_TECLADO_OK, &estado) != ERR_OK) {
-      console_printf("SO: problema no acesso ao estado do teclado");
-      self->erro_interno = true;
-      return;
+static void so_chamada_le(so_t *self) {
+
+    process_t *running = ptable_running_process(self->ptbl);
+
+    int teclado = 4 * process_pid(running) + D_TERM_A_TECLADO;
+    int teclado_ok = 4 * process_pid(running) + D_TERM_A_TECLADO_OK;
+
+    int available;
+    if (es_le(self->es, teclado_ok, &available) != ERR_OK) {
+        self->erro_interno = true;
+        return;
     }
-    if (estado != 0) break;
-    // como não está saindo do SO, a unidade de controle não está executando seu laço.
-    // esta gambiarra faz pelo menos a console ser atualizada
-    // T1: com a implementação de bloqueio de processo, esta gambiarra não
-    //   deve mais existir.
-    console_tictac(self->console);
-  }
-  int dado;
-  if (es_le(self->es, D_TERM_A_TECLADO, &dado) != ERR_OK) {
-    console_printf("SO: problema no acesso ao teclado");
-    self->erro_interno = true;
-    return;
-  }
-  // escreve no reg A do processador
-  // (na verdade, na posição onde o processador vai pegar o A quando retornar da int)
-  // T1: se houvesse processo, deveria escrever no reg A do processo
-  // T1: o acesso só deve ser feito nesse momento se for possível; se não, o processo
-  //   é bloqueado, e o acesso só deve ser feito mais tarde (e o processo desbloqueado)
-  mem_escreve(self->mem, IRQ_END_A, dado);
+
+    if (!available) {
+        process_set_state(running, blocked);
+        process_set_pendency(running, read);
+        return;
+    }
+
+    int data;
+    if (es_le(self->es, teclado, &data) != ERR_OK) {
+        self->erro_interno = true;
+        return;
+    }
+
+    process_set_A(running, data);
 }
 
-// implementação da chamada se sistema SO_ESCR
-// escreve o valor do reg X na saída corrente do processo
-static void so_chamada_escr(so_t *self)
-{
-  // implementação com espera ocupada
-  //   T1: deveria bloquear o processo se dispositivo ocupado
-  // implementação escrevendo direto do terminal A
-  //   T1: deveria usar o dispositivo de saída corrente do processo
-  for (;;) {
-    int estado;
-    if (es_le(self->es, D_TERM_A_TELA_OK, &estado) != ERR_OK) {
-      console_printf("SO: problema no acesso ao estado da tela");
-      self->erro_interno = true;
-      return;
+static void so_chamada_escr(so_t *self) {
+
+    process_t *running = ptable_running_process(self->ptbl);
+
+    int tela = 4 * process_pid(running) + D_TERM_A_TELA;
+    int tela_ok = 4 * process_pid(running) + D_TERM_A_TELA_OK;
+
+    int available;
+    if (es_le(self->es, tela_ok, &available) != ERR_OK) {
+        self->erro_interno = true;
+        return;
     }
-    if (estado != 0) break;
-    // como não está saindo do SO, a unidade de controle não está executando seu laço.
-    // esta gambiarra faz pelo menos a console ser atualizada
-    // T1: não deve mais existir quando houver suporte a processos, porque o SO não poderá
-    //   executar por muito tempo, permitindo a execução do laço da unidade de controle
-    console_tictac(self->console);
-  }
-  int dado;
-  // está lendo o valor de X e escrevendo o de A direto onde o processador colocou/vai pegar
-  // T1: deveria usar os registradores do processo que está realizando a E/S
-  // T1: caso o processo tenha sido bloqueado, esse acesso deve ser realizado em outra execução
-  //   do SO, quando ele verificar que esse acesso já pode ser feito.
-  mem_le(self->mem, IRQ_END_X, &dado);
-  if (es_escreve(self->es, D_TERM_A_TELA, dado) != ERR_OK) {
-    console_printf("SO: problema no acesso à tela");
-    self->erro_interno = true;
-    return;
-  }
-  mem_escreve(self->mem, IRQ_END_A, 0);
+
+    if (!available) {
+        process_set_state(running, blocked);
+        process_set_pendency(running, write);
+        return;
+    }
+
+    int data = process_X(running);
+
+    if (es_escreve(self->es, tela, data) != ERR_OK) {
+        self->erro_interno = true;
+        return;
+    }
+
+    process_set_A(running, 0);
 }
 
 // implementação da chamada se sistema SO_CRIA_PROC
@@ -430,7 +554,7 @@ static void so_chamada_cria_proc(so_t *self)
   // ainda sem suporte a processos, carrega programa e passa a executar ele
   // quem chamou o sistema não vai mais ser executado, coitado!
   // T1: deveria criar um novo processo
-  processo_t processo = 1; // T2: o processo criado
+  processo_t processo = 1; // T2: o processo criado ***********
 
   // em X está o endereço onde está o nome do arquivo
   int ender_proc;
@@ -452,24 +576,47 @@ static void so_chamada_cria_proc(so_t *self)
   mem_escreve(self->mem, IRQ_END_A, -1);
 }
 
-// implementação da chamada se sistema SO_MATA_PROC
-// mata o processo com pid X (ou o processo corrente se X é 0)
-static void so_chamada_mata_proc(so_t *self)
-{
-  // T1: deveria matar um processo
-  // ainda sem suporte a processos, retorna erro -1
-  console_printf("SO: SO_MATA_PROC não implementada");
-  mem_escreve(self->mem, IRQ_END_A, -1);
+static void so_chamada_mata_proc(so_t *self) {
+
+    process_t *running = ptable_running_process(self->ptbl);
+
+    int pid = process_X(running);
+
+    process_t *found = pid == 0 ? running : ptable_find(self->ptbl, pid);
+
+    if (found) {
+        ptable_remove_process(self->ptbl, found);
+        wlist_solve(self->wlst, found);
+
+        if (pid == 0) {
+            ptable_set_running_process(self->ptbl, NULL);
+        }
+
+        // Por quê?
+        process_set_state(found, ready);
+    }
+
+    // Contabilidade
+    es_le(self->es,
+          D_RELOGIO_INSTRUCOES,
+          &logs.process_killed_at[process_pid(found)]);
 }
 
-// implementação da chamada se sistema SO_ESPERA_PROC
-// espera o fim do processo com pid X
-static void so_chamada_espera_proc(so_t *self)
-{
-  // T1: deveria bloquear o processo se for o caso (e desbloquear na morte do esperado)
-  // ainda sem suporte a processos, retorna erro -1
-  console_printf("SO: SO_ESPERA_PROC não implementada");
-  mem_escreve(self->mem, IRQ_END_A, -1);
+static void so_chamada_espera_proc(so_t *self) {
+
+    process_t *running = ptable_running_process(self->ptbl);
+
+    int pid = process_X(running);
+
+    process_t *found = ptable_find(self->ptbl, pid);
+
+    if (found) {
+        waiting_t *wt = waiting_alloc(running, found);
+        wlist_insert(self->wlst, wt);
+        process_set_state(running, blocked);
+    } else {
+        process_set_state(running, ready);
+    }
 }
 
 // CARGA DE PROGRAMA {{{1
