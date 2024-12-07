@@ -660,6 +660,7 @@ static int so_carrega_programa_na_memoria_virtual(so_t *self, programa_t *progra
     int quadro = quadro_ini;
     for (int pagina = pagina_ini; pagina <= pagina_fim; pagina++) {
         tabpag_define_quadro(process_tabpag(proc), pagina, quadro);
+        tabpag_invalida_pagina(process_tabpag(proc), pagina);
         quadro++;
     }
     self->quadro_livre = quadro;
