@@ -647,15 +647,6 @@ static int so_carrega_programa_na_memoria_fisica(so_t *self, programa_t *program
 }
 
 static int so_carrega_programa_na_memoria_virtual(so_t *self, programa_t *programa, process_t *proc) {
-    // t2: isto tá furado...
-    // está simplesmente lendo para o próximo quadro que nunca foi ocupado,
-    //   nem testa se tem memória disponível
-    // com memória virtual, a forma mais simples de implementar a carga de um
-    //   programa é carregá-lo para a memória secundária, e mapear todas as páginas
-    //   da tabela de páginas do processo como inválidas. Assim, as páginas serão
-    //   colocadas na memória principal por demanda. Para simplificar ainda mais, a
-    //   memória secundária pode ser alocada da forma como a principal está sendo
-    //   alocada aqui (sem reuso)
 
     mmu_define_tabpag(self->mmu, process_tabpag(proc));
 
