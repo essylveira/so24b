@@ -50,6 +50,7 @@ void process_load_registers(process_t *proc, mem_t *mem);
 void process_printf(process_t *proc);
 pstate process_state(process_t *proc);
 void process_set_state(process_t *proc, pstate st);
+tabpag_t *process_tabpag(process_t *proc);
 
 process_t *ptable_running_process(ptable_t *ptbl);
 process_t *ptable_head(ptable_t *ptbl);
@@ -58,6 +59,7 @@ int process_pid(process_t *proc);
 int process_PC(process_t *proc);
 int process_X(process_t *proc);
 int process_A(process_t *proc);
+cpu_modo_t process_modo(process_t *proc);
 
 process_t *process_next(process_t *proc);
 pendency_t process_pendency(process_t *proc);
@@ -65,6 +67,7 @@ pendency_t process_pendency(process_t *proc);
 void process_set_PC(process_t *proc, int PC);
 void process_set_A(process_t *proc, int A);
 void process_set_pendency(process_t *proc, pendency_t pendency);
+void process_set_modo(process_t *proc, cpu_modo_t modo);
 void process_dec_quantum(process_t *proc);
 
 float process_prio(process_t *proc);

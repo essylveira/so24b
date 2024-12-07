@@ -16,6 +16,7 @@ struct process {
     pstate st;
     process_t *next;
     pendency_t pendency;
+    tabpag_t *tabpag;
 };
 
 struct ptable {
@@ -34,6 +35,8 @@ process_t *process_create() {
     proc->prio = 0.5;
     proc->modo = usuario;
     proc->st = ready;
+
+    proc->tabpag = tabpag_cria();
 
     return proc;
 }
@@ -83,6 +86,10 @@ pstate process_state(process_t *proc) {
     return proc->st;
 }
 
+tabpag_t *process_tabpag(process_t *proc) {
+    return proc->tabpag;
+}
+
 void process_set_state(process_t *proc, pstate st) {
     proc->st = st;
     if (st == blocked) {
@@ -90,6 +97,10 @@ void process_set_state(process_t *proc, pstate st) {
         proc->prio = (proc->prio + proc->t_exec / QUANTUM) / 2;
     }
     logs.number_states_process[proc->pid][st]++;
+}
+
+cpu_modo_t process_modo(process_t *proc) {
+    return proc->modo;
 }
 
 process_t *ptable_running_process(ptable_t *ptbl) {
@@ -130,6 +141,10 @@ void process_set_PC(process_t *proc, int PC) {
 
 void process_set_A(process_t *proc, int A) {
     proc->A = A;
+}
+
+void process_set_modo(process_t *proc, cpu_modo_t modo) {
+    proc->modo = modo;
 }
 
 void process_set_pendency(process_t *proc, pendency_t pendency) {
@@ -318,15 +333,15 @@ void ptable_preemptive_mode(ptable_t *ptbl) {
         ptable_move_to_end(ptbl);
     }
 
-    curr = ptbl->head;
-    while (curr) {
-        console_printf("pid: %d, quantum: %d, state: %d",
-                       curr->pid,
-                       curr->quantum,
-                       curr->st);
-        curr = curr->next;
-    }
-    console_printf("----------------");
+    // curr = ptbl->head;
+    // while (curr) {
+    //     console_printf("pid: %d, quantum: %d, state: %d",
+    //                    curr->pid,
+    //                    curr->quantum,
+    //                    curr->st);
+    //     curr = curr->next;
+    // }
+    // console_printf("----------------");
 }
 
 static process_t *ptable_minimum_prio(ptable_t *ptbl) {
@@ -393,16 +408,16 @@ void ptable_priority_mode(ptable_t *ptbl) {
 
     ptable_sort_by_priority(ptbl);
 
-    curr = ptbl->head;
-    while (curr) {
-        console_printf("pid: %d, prio: %f, quantum: %d, state: %d",
-                       curr->pid,
-                       curr->prio,
-                       curr->quantum,
-                       curr->st);
-        curr = curr->next;
-    }
-    console_printf("----------------");
+    // curr = ptbl->head;
+    // while (curr) {
+    //     console_printf("pid: %d, prio: %f, quantum: %d, state: %d",
+    //                    curr->pid,
+    //                    curr->prio,
+    //                    curr->quantum,
+    //                    curr->st);
+    //     curr = curr->next;
+    // }
+    // console_printf("----------------");
 }
 
 bool ptable_idle(ptable_t *ptbl) {
