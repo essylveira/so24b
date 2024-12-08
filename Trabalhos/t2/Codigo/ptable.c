@@ -16,7 +16,10 @@ struct process {
     pstate st;
     process_t *next;
     pendency_t pendency;
+    // Tabpag
     tabpag_t *tabpag;
+    int init;
+    int size;
 };
 
 struct ptable {
@@ -43,6 +46,23 @@ process_t *process_create() {
 
 void process_free(process_t *proc) {
     free(proc);
+}
+
+void process_set_disk(process_t *proc, int init, int size) {
+    proc->init = init;
+    proc->size = size;
+}
+
+int process_disk_init(process_t *proc) {
+    return proc->init;
+}
+
+int process_disk_size(process_t *proc) {
+    return proc->size;
+}
+
+int process_complemento(process_t *proc) {
+    return proc->complemento;
 }
 
 void process_save_registers(process_t *proc, mem_t *mem) {

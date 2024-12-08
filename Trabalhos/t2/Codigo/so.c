@@ -39,6 +39,11 @@
 //   representar a inexistência de um processo, coloquei -1. Altere para o seu
 //   tipo, ou substitua os usos de processo_t e NENHUM_PROCESSO para o seu tipo.
 
+#define DISK_TAM 1000
+typedef mem_t disk_t;
+int pos_livre = 0;
+
+
 log_t logs;
 
 struct so_t {
@@ -62,6 +67,9 @@ struct so_t {
     // uma tabela de páginas para poder usar a MMU
     // t2: com processos, não tem esta tabela global, tem que ter uma para
     //     cada processo
+    disk_t *disk;
+
+    FILE *prints;
 };
 
 // função de tratamento de interrupção (entrada no SO)
@@ -111,11 +119,15 @@ so_t *so_cria(cpu_t *cpu, mem_t *mem, mmu_t *mmu, es_t *es, console_t *console) 
         self->erro_interno = true;
     }
 
+    self->disk = mem_cria(DISK_TAM);
+
     // t1
     self->ptbl = ptable_create();
     self->wlst = wlist_alloc();
 
     self->finished = false;
+
+    self->prints = fopen("prints.txt", "w");
 
     // inicializa a tabela de páginas global, e entrega ela para a MMU
     // t2: com processos, essa tabela não existiria, teria uma por processo, que
@@ -133,6 +145,7 @@ so_t *so_cria(cpu_t *cpu, mem_t *mem, mmu_t *mmu, es_t *es, console_t *console) 
 void so_destroi(so_t *self) {
     cpu_define_chamaC(self->cpu, NULL, NULL);
     ptable_free(self->ptbl);
+    fclose(self->prints);
     free(self);
 }
 
@@ -338,14 +351,60 @@ static void so_trata_irq_reset(so_t *self) {
     ptable_set_running_process(self->ptbl, proc);
 }
 
+static void so_trata_err_pag_ausente(so_t *self) {
+
+    console_printf("========");
+
+    process_t *running = ptable_running_process(self->ptbl);
+    tabpag_t *tabpag = process_tabpag(running);
+
+    int virtual = process_complemento(running);
+
+    int init = process_disk_init(running);
+
+    tabpag_define_quadro(tabpag, virtual / TAM_PAGINA, self->quadro_livre);
+
+    int init_virtual = (virtual / TAM_PAGINA) * TAM_PAGINA;
+
+    for (int i = init_virtual; i < init_virtual + TAM_PAGINA; i++) {
+        int valor;
+        mem_le(self->disk, i + init, &valor); // endereço no disco + init
+        mmu_escreve(self->mmu, i, valor, process_modo(running));
+    }
+
+    fprintf(self->prints, "VIRTUAL: %d, END: %d, PAGINA: %d, QUADRO: %d\n", virtual, virtual + init, virtual / TAM_PAGINA, self->quadro_livre);
+
+    int tam = mem_tam(self->mem);
+    fprintf(self->prints, "[");
+    for (int i = 0; i < tam; i++) {
+        fprintf(self->prints, " %04d ", i);
+    }
+    fprintf(self->prints, "]\n");
+    fprintf(self->prints, "[");
+    for (int i = 0; i < tam; i++) {
+        int valor;
+        mem_le(self->mem, i, &valor);
+        fprintf(self->prints, " %04d ", valor);
+    }
+    fprintf(self->prints, "]");
+
+    self->quadro_livre++;
+}
+
 // interrupção gerada quando a CPU identifica um erro
 static void so_trata_irq_err_cpu(so_t *self) {
+
     int err_int;
 
     mem_le(self->mem, IRQ_END_erro, &err_int);
     err_t err = err_int;
-    console_printf("SO: IRQ não tratada -- erro na CPU: %s", err_nome(err));
-    self->erro_interno = true;
+
+    if (err == ERR_PAG_AUSENTE) {
+        so_trata_err_pag_ausente(self);
+    } else {
+        console_printf("SO: IRQ não tratada -- erro na CPU: %s", err_nome(err));
+        self->erro_interno = true;
+    }
 }
 
 static void so_trata_irq_relogio(so_t *self) {
@@ -418,6 +477,19 @@ static void so_trata_irq_relogio(so_t *self) {
                     logs.process_state_time[i][1] / (float)logs.number_states_process[i][1]);
         }
         fprintf(fp, "\n");
+
+        fprintf(fp, "[");
+        for (int i = 0; i < DISK_TAM; i++) {
+            fprintf(fp, " %04d ", i);
+        }
+        fprintf(fp, "]\n");
+        fprintf(fp, "[");
+        for (int i = 0; i < DISK_TAM; i++) {
+            int valor;
+            mem_le(self->disk, i, &valor);
+            fprintf(fp, " %04d ", valor);
+        }
+        fprintf(fp, "]");
 
         fclose(fp);
     }
@@ -624,8 +696,7 @@ static int so_carrega_programa(so_t *self, process_t *processo, char *nome_do_ex
     int end_carga;
     if (processo == NULL) {
         end_carga = so_carrega_programa_na_memoria_fisica(self, programa);
-    } else {
-        end_carga = so_carrega_programa_na_memoria_virtual(self, programa, processo);
+    } else { end_carga = so_carrega_programa_na_memoria_virtual(self, programa, processo);
     }
 
     prog_destroi(programa);
@@ -648,34 +719,42 @@ static int so_carrega_programa_na_memoria_fisica(so_t *self, programa_t *program
 
 static int so_carrega_programa_na_memoria_virtual(so_t *self, programa_t *programa, process_t *proc) {
 
-    mmu_define_tabpag(self->mmu, process_tabpag(proc));
+    // mmu_define_tabpag(self->mmu, process_tabpag(proc));
+    //
+    // int end_virt_ini = prog_end_carga(programa);
+    // int end_virt_fim = end_virt_ini + prog_tamanho(programa) - 1;
+    // int pagina_ini = end_virt_ini / TAM_PAGINA;
+    // int pagina_fim = end_virt_fim / TAM_PAGINA;
+    // int quadro_ini = self->quadro_livre;
+    //
+    // // mapeia as páginas nos quadros
+    // int quadro = quadro_ini;
+    // for (int pagina = pagina_ini; pagina <= pagina_fim; pagina++) {
+    //     tabpag_define_quadro(process_tabpag(proc), pagina, quadro);
+    //     quadro++;
+    // }
+    // self->quadro_livre = quadro;
+    //
+    // // carrega o programa na memória principal
+    // int end_fis_ini = quadro_ini * TAM_PAGINA;
+    // int end_fis = end_fis_ini;
+    //
+    // for (int end_virt = end_virt_ini; end_virt <= end_virt_fim; end_virt++) {
+    //     mmu_escreve(self->mmu, end_virt, prog_dado(programa, end_virt), process_modo(proc));
+    //     end_fis++;
+    // }
 
-    int end_virt_ini = prog_end_carga(programa);
-    int end_virt_fim = end_virt_ini + prog_tamanho(programa) - 1;
-    int pagina_ini = end_virt_ini / TAM_PAGINA;
-    int pagina_fim = end_virt_fim / TAM_PAGINA;
-    int quadro_ini = self->quadro_livre;
+    // Carrega dados no disco.
+    
+    process_set_disk(proc, pos_livre, prog_tamanho(programa));
 
-    // mapeia as páginas nos quadros
-    int quadro = quadro_ini;
-    for (int pagina = pagina_ini; pagina <= pagina_fim; pagina++) {
-        tabpag_define_quadro(process_tabpag(proc), pagina, quadro);
-        tabpag_invalida_pagina(process_tabpag(proc), pagina);
-        quadro++;
+    for (int i = 0; i < prog_tamanho(programa); i++) {
+        mem_escreve(self->disk, pos_livre, prog_dado(programa, i));
+        pos_livre++;
     }
-    self->quadro_livre = quadro;
 
-    // carrega o programa na memória principal
-    int end_fis_ini = quadro_ini * TAM_PAGINA;
-    int end_fis = end_fis_ini;
-
-    for (int end_virt = end_virt_ini; end_virt <= end_virt_fim; end_virt++) {
-        mmu_escreve(self->mmu, end_virt, prog_dado(programa, end_virt), process_modo(proc));
-        end_fis++;
-    }
-
-    console_printf("carregado na memória virtual V%d-%d F%d-%d", end_virt_ini, end_virt_fim, end_fis_ini, end_fis - 1);
-    return end_virt_ini;
+    // console_printf("carregado na memória virtual V%d-%d F%d-%d", end_virt_ini, end_virt_fim, end_fis_ini, end_fis - 1);
+    return 0;
 }
 
 // ACESSO À MEMÓRIA DOS PROCESSOS {{{1

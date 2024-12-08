@@ -55,6 +55,12 @@ tabpag_t *process_tabpag(process_t *proc);
 process_t *ptable_running_process(ptable_t *ptbl);
 process_t *ptable_head(ptable_t *ptbl);
 
+void process_set_disk(process_t *proc, int init, int size);
+int process_disk_init(process_t *proc);
+int process_disk_size(process_t *proc);
+
+int process_complemento(process_t *proc);
+
 int process_pid(process_t *proc);
 int process_PC(process_t *proc);
 int process_X(process_t *proc);
