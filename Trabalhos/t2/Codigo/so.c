@@ -127,7 +127,7 @@ so_t *so_cria(cpu_t *cpu, mem_t *mem, mmu_t *mmu, es_t *es, console_t *console) 
 
     self->finished = false;
 
-    self->prints = fopen("prints.txt", "w");
+    self->prints = fopen("vetores.txt", "w");
 
     // inicializa a tabela de páginas global, e entrega ela para a MMU
     // t2: com processos, essa tabela não existiria, teria uma por processo, que
@@ -362,8 +362,6 @@ static void so_trata_err_pag_ausente(so_t *self) {
 
     int init = process_disk_init(running);
 
-    tabpag_define_quadro(tabpag, virtual / TAM_PAGINA, self->quadro_livre);
-
     int init_virtual = (virtual / TAM_PAGINA) * TAM_PAGINA;
 
     for (int i = init_virtual; i < init_virtual + TAM_PAGINA; i++) {
@@ -388,6 +386,7 @@ static void so_trata_err_pag_ausente(so_t *self) {
     }
     fprintf(self->prints, "]");
 
+    tabpag_define_quadro(tabpag, virtual / TAM_PAGINA, self->quadro_livre);
     self->quadro_livre++;
 }
 
@@ -719,30 +718,30 @@ static int so_carrega_programa_na_memoria_fisica(so_t *self, programa_t *program
 
 static int so_carrega_programa_na_memoria_virtual(so_t *self, programa_t *programa, process_t *proc) {
 
-    // mmu_define_tabpag(self->mmu, process_tabpag(proc));
-    //
-    // int end_virt_ini = prog_end_carga(programa);
-    // int end_virt_fim = end_virt_ini + prog_tamanho(programa) - 1;
-    // int pagina_ini = end_virt_ini / TAM_PAGINA;
-    // int pagina_fim = end_virt_fim / TAM_PAGINA;
-    // int quadro_ini = self->quadro_livre;
-    //
-    // // mapeia as páginas nos quadros
-    // int quadro = quadro_ini;
-    // for (int pagina = pagina_ini; pagina <= pagina_fim; pagina++) {
-    //     tabpag_define_quadro(process_tabpag(proc), pagina, quadro);
-    //     quadro++;
-    // }
-    // self->quadro_livre = quadro;
-    //
-    // // carrega o programa na memória principal
-    // int end_fis_ini = quadro_ini * TAM_PAGINA;
-    // int end_fis = end_fis_ini;
-    //
-    // for (int end_virt = end_virt_ini; end_virt <= end_virt_fim; end_virt++) {
-    //     mmu_escreve(self->mmu, end_virt, prog_dado(programa, end_virt), process_modo(proc));
-    //     end_fis++;
-    // }
+    mmu_define_tabpag(self->mmu, process_tabpag(proc));
+
+    int end_virt_ini = prog_end_carga(programa);
+    int end_virt_fim = end_virt_ini + prog_tamanho(programa) - 1;
+    int pagina_ini = end_virt_ini / TAM_PAGINA;
+    int pagina_fim = end_virt_fim / TAM_PAGINA;
+    int quadro_ini = self->quadro_livre;
+
+    // mapeia as páginas nos quadros
+    int quadro = quadro_ini;
+    for (int pagina = pagina_ini; pagina <= pagina_fim; pagina++) {
+        tabpag_define_quadro(process_tabpag(proc), pagina, quadro);
+        quadro++;
+    }
+    self->quadro_livre = quadro;
+
+    // carrega o programa na memória principal
+    int end_fis_ini = quadro_ini * TAM_PAGINA;
+    int end_fis = end_fis_ini;
+
+    for (int end_virt = end_virt_ini; end_virt <= end_virt_fim; end_virt++) {
+        mmu_escreve(self->mmu, end_virt, prog_dado(programa, end_virt), process_modo(proc));
+        end_fis++;
+    }
 
     // Carrega dados no disco.
     
